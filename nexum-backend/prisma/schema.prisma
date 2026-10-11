@@ -1,0 +1,571 @@
+// Nexum — Prisma schema
+// Source of truth: implementation_plan.md (Step Zero). Do not hand-edit the DB in Supabase's
+// UI once migrations exist — every schema change goes through a Prisma migration.
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// ENUMS
+// ----------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RoomStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  MAINTENANCE
+  INACTIVE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum LeaseStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  BUSINESS_LICENSE // ንግድ ፈቃድ
+  ESTABLISHMENT_DOC // መመስረቻ
+  CLEARANCE // ክሊራንስ
+  AGREEMENT // ውል
+  OTHER // ሌሎች
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum NotificationChannel {
+  EMAIL
+  TELEGRAM
+  SMS
+  IN_APP
+  PUSH
+}
+
+enum NotificationStatus {
+  CREATED
+  SENT
+  READ
+  FAILED
+  OPENED_FOR_SENDING
+}
+
+enum NotificationType {
+  REGISTRATION
+  DOCUMENT
+  ROOM_REQUEST
+  LEASE
+  PAYMENT
+  PAYMENT_DUE_ALERT
+  MAINTENANCE
+  ANNOUNCEMENT
+  SYSTEM
+}
+
+enum MessageTargetType {
+  INDIVIDUAL
+  SELECTED
+  GROUP_ALL
+  GROUP_PROPERTY
+  GROUP_BUILDING
+  GROUP_FLOOR
+  GROUP_PAYMENTS_DUE_7_DAYS
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  SUSPEND
+  ACTIVATE
+  TERMINATE
+  PRICE_CHANGE
+  STATUS_CHANGE
+  LOGIN
+  PASSWORD_RESET
+}
+
+// ----------------------------------------------------
+// USER & AUTHENTICATION
+// ----------------------------------------------------
+
+model User {
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  phone              String             @unique
+  passwordHash       String
+  firstName          String
+  lastName           String
+  telegramUsername   String?
+  role               UserRole           @default(USER)
+  status             UserStatus         @default(ACTIVE)
+  registrationStatus RegistrationStatus @default(PENDING)
+  rejectionReason    String?
+  avatarUrl          String?
+  address            String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relationships
+  refreshTokens          RefreshToken[]
+  passwordResetTokens    PasswordResetToken[]
+  documents              Document[]
+  roomRequests           RoomRequest[]
+  leases                 Lease[]
+  payments               Payment[]
+  approvedPayments       Payment[]                     @relation("ApprovedByAdmin")
+  reviewedDocuments      Document[]                    @relation("ReviewedByAdmin")
+  sentMessages           Message[]                     @relation("SentMessages")
+  receivedMessages       MessageRecipient[]
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  adminNotificationPref  AdminNotificationPreference?
+  pushSubscriptions      PushSubscription[]
+  telegramConnection     TelegramConnection?
+  maintenanceRequests    MaintenanceRequest[]
+  auditLogs              AuditLog[]                    @relation("UserAuditLogs")
+
+  @@index([email])
+  @@index([phone])
+  @@index([role, status, registrationStatus])
+}
+
+model RefreshToken {
+  id                  String    @id @default(uuid())
+  tokenHash           String    @unique
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  replacedByTokenHash String?
+  createdAt           DateTime  @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+// ----------------------------------------------------
+// PROPERTY STRUCTURE (Property -> Building -> Floor -> Room)
+// ----------------------------------------------------
+
+model Property {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  address     String
+  city        String   @default("Addis Ababa")
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  buildings           Building[]
+  rooms               Room[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@index([code])
+}
+
+model Building {
+  id          String   @id @default(uuid())
+  name        String
+  code        String
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  floors Floor[]
+  rooms  Room[]
+
+  @@unique([propertyId, code])
+  @@index([propertyId])
+}
+
+model Floor {
+  id          String   @id @default(uuid())
+  floorNumber Int
+  name        String
+  buildingId  String
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms Room[]
+
+  @@unique([buildingId, floorNumber])
+  @@index([buildingId])
+}
+
+model Room {
+  id                   String     @id @default(uuid())
+  roomNumber           String
+  floorId              String
+  floor                Floor      @relation(fields: [floorId], references: [id], onDelete: Restrict)
+  buildingId           String
+  building             Building   @relation(fields: [buildingId], references: [id], onDelete: Restrict)
+  propertyId           String
+  property             Property   @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  areaSqM              Decimal    @db.Decimal(10, 2)
+  pricePerSqM          Decimal    @db.Decimal(10, 2)
+  monthlyRent          Decimal    @db.Decimal(12, 2) // Calculated = areaSqM * pricePerSqM
+  description          String?
+  images               String[]   @default([])
+  status               RoomStatus @default(AVAILABLE)
+  reservationExpiresAt DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  roomRequests        RoomRequest[]
+  leases              Lease[]
+  payments            Payment[]
+  maintenanceRequests MaintenanceRequest[]
+
+  @@unique([floorId, roomNumber])
+  @@index([propertyId, buildingId, floorId])
+  @@index([status])
+}
+
+// ----------------------------------------------------
+// ROOM REQUESTS & LEASES
+// ----------------------------------------------------
+
+model RoomRequest {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roomId           String
+  room             Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  status           RequestStatus @default(PENDING)
+  desiredStartDate DateTime
+  note             String?
+  rejectionReason  String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([roomId])
+  @@index([status])
+}
+
+model Lease {
+  id                String      @id @default(uuid())
+  leaseNumber       String      @unique
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  roomId            String
+  room              Room        @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  startDate         DateTime
+  endDate           DateTime
+  monthlyRent       Decimal     @db.Decimal(12, 2)
+  paymentSchedule   String      @default("MONTHLY")
+  status            LeaseStatus @default(ACTIVE)
+  terminationDate   DateTime?
+  terminationReason String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  payments Payment[]
+
+  @@index([userId])
+  @@index([roomId])
+  @@index([status])
+  @@index([endDate])
+}
+
+// ----------------------------------------------------
+// PAYMENTS
+// ----------------------------------------------------
+
+model Payment {
+  id               String        @id @default(uuid())
+  paymentNumber    String        @unique
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  leaseId          String
+  lease             Lease         @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  roomId            String
+  room             Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  amount           Decimal       @db.Decimal(12, 2)
+  currency         String        @default("ETB")
+  monthsCovered    Int
+  periodStartDate  DateTime
+  periodEndDate    DateTime
+  paymentDate      DateTime
+  paymentMethod    String?
+  referenceNumber  String?
+  receiptPath      String // Supabase private storage path
+  status           PaymentStatus @default(PENDING)
+  rejectionReason  String?
+  note             String?
+  approvedByUserId String?
+  approvedBy       User?         @relation("ApprovedByAdmin", fields: [approvedByUserId], references: [id])
+  approvedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([leaseId])
+  @@index([status])
+  @@index([periodEndDate])
+}
+
+// ----------------------------------------------------
+// DOCUMENTS & VERSIONING
+// ----------------------------------------------------
+
+model Document {
+  id                String         @id @default(uuid())
+  userId            String
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType      DocumentType
+  title             String
+  filePath          String // Supabase private storage path
+  fileType          String // e.g. application/pdf, image/jpeg
+  fileSizeBytes     Int
+  version           Int            @default(1)
+  previousVersionId String?        @unique
+  previousVersion   Document?      @relation("DocumentVersions", fields: [previousVersionId], references: [id])
+  nextVersion       Document?      @relation("DocumentVersions")
+  status            DocumentStatus @default(PENDING)
+  rejectionReason   String?
+  reviewedByUserId  String?
+  reviewedBy        User?          @relation("ReviewedByAdmin", fields: [reviewedByUserId], references: [id])
+  reviewedAt        DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([documentType])
+  @@index([status])
+}
+
+// ----------------------------------------------------
+// MESSAGING & NOTIFICATIONS
+// ----------------------------------------------------
+
+model Message {
+  id           String            @id @default(uuid())
+  senderId     String
+  sender       User              @relation("SentMessages", fields: [senderId], references: [id], onDelete: Restrict)
+  subject      String
+  body         String
+  targetType   MessageTargetType @default(INDIVIDUAL)
+  targetFilter Json?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  recipients MessageRecipient[]
+
+  @@index([senderId])
+}
+
+model MessageRecipient {
+  id          String    @id @default(uuid())
+  messageId   String
+  message     Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User      @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([messageId, recipientId])
+  @@index([recipientId, isRead])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String
+  type      NotificationType @default(SYSTEM)
+  actionUrl String?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  deliveries NotificationDelivery[]
+
+  @@index([userId, isRead])
+  @@index([type])
+}
+
+model NotificationDelivery {
+  id              String              @id @default(uuid())
+  notificationId  String
+  notification    Notification        @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  channel         NotificationChannel
+  status          NotificationStatus  @default(CREATED)
+  deliveryDetails Json?
+  attempts        Int                 @default(0)
+  errorMessage    String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([notificationId])
+  @@index([channel, status])
+}
+
+model NotificationPreference {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailEnabled    Boolean  @default(true)
+  telegramEnabled Boolean  @default(true)
+  smsEnabled      Boolean  @default(true)
+  inAppEnabled    Boolean  @default(true)
+  pushEnabled     Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
+model AdminNotificationPreference {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentsDueInApp  Boolean  @default(true)
+  paymentsDueEmail  Boolean  @default(true)
+  paymentsDuePush   Boolean  @default(false)
+  maintenanceInApp  Boolean  @default(true)
+  maintenanceEmail  Boolean  @default(true)
+  registrationInApp Boolean  @default(true)
+  registrationEmail Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model TelegramConnection {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId            String   @unique
+  telegramUsername String?
+  isActive         Boolean  @default(true)
+  connectedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([chatId])
+}
+
+// ----------------------------------------------------
+// MAINTENANCE & AUDIT
+// ----------------------------------------------------
+
+model MaintenanceRequest {
+  id           String            @id @default(uuid())
+  ticketNumber String            @unique
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  propertyId   String
+  property     Property          @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  roomId       String?
+  room         Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  issueTitle   String
+  description  String
+  imagePath    String? // Supabase private storage path
+  status       MaintenanceStatus @default(PENDING)
+  adminNotes   String?
+  resolvedAt   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([propertyId])
+  @@index([roomId])
+  @@index([status])
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  actorId    String?
+  actor      User?       @relation("UserAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  action     AuditAction
+  entityType String // USER, DOCUMENT, PAYMENT, ROOM, LEASE, ROOM_REQUEST, MAINTENANCE, etc.
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime    @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([timestamp])
+}
