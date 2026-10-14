@@ -66,8 +66,6 @@ export default function AdminBuildingDetailPage() {
     useState(false);
 
   const load = () => {
-    setIsLoading(true);
-
     Promise.all([
       getBuilding(buildingId),
       listFloors(buildingId),
@@ -80,12 +78,15 @@ export default function AdminBuildingDetailPage() {
         setError(getApiErrorMessage(err)),
       )
       .finally(() => setIsLoading(false));
+
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, buildingId]);
 
   const handleCreateFloor = async (

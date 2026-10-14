@@ -35,16 +35,19 @@ export default function NotificationsPage() {
   }, [authLoading, user, router]);
 
   const load = () => {
-    setIsLoading(true);
     listMyNotifications()
       .then(setNotifications)
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleOpen = async (notification: AppNotification) => {

@@ -61,10 +61,11 @@ export function AuthProvider({
   }, []);
 
   useEffect(() => {
-    refreshUser();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Defer so any setState inside refreshUser is not synchronous in the effect body
+    queueMicrotask(() => {
+      void refreshUser();
+    });
+  }, [refreshUser]);
 
   const login = useCallback(
     async (

@@ -20,8 +20,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-const TABS = ['requests', 'maintenance'] as const;
-type Tab = (typeof TABS)[number];
+type Tab = 'requests' | 'maintenance';
 
 export default function RequestsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -40,8 +39,6 @@ export default function RequestsPage() {
   }, [authLoading, user, router]);
 
   const load = () => {
-    setIsLoading(true);
-    setError(null);
     Promise.all([listMyRoomRequests(), listMyLeases(), listMyMaintenanceRequests()])
       .then(([reqs, leaseList, maintList]) => {
         setRequests(reqs);
@@ -50,11 +47,15 @@ export default function RequestsPage() {
       })
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleCancel = async (id: string) => {

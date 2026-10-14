@@ -12,7 +12,8 @@ export function useUnreadCount() {
 
   useEffect(() => {
     if (!user) {
-      setCount(0);
+      // Defer so setState is not synchronous in the effect body
+      queueMicrotask(() => setCount(0));
       return;
     }
 

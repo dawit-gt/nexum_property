@@ -45,15 +45,17 @@ export default function AdminMessagesPage() {
   const [isLoadingSent, setIsLoadingSent] = useState(true);
 
   const loadSent = () => {
-    setIsLoadingSent(true);
     listSentMessages()
       .then(setSent)
       .finally(() => setIsLoadingSent(false));
+
+    queueMicrotask(() => {
+      setIsLoadingSent(true);
+    });
   };
 
   useEffect(() => {
     if (user) loadSent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Reset target-specific selections whenever the target type itself changes,

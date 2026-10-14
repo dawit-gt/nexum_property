@@ -31,7 +31,6 @@ export default function AdminPaymentsPage() {
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
 
   const load = (targetPage: number, reset: boolean) => {
-    setIsLoading(true);
     listPaymentsForReview({ page: targetPage, limit: 10, search: search || undefined, status: 'PENDING' })
       .then((result) => {
         setPayments((prev) => (reset ? result.data : [...prev, ...result.data]));
@@ -39,11 +38,15 @@ export default function AdminPaymentsPage() {
       })
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load(1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, search]);
 
   const handleSearchChange = (value: string) => {

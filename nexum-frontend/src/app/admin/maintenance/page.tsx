@@ -34,8 +34,6 @@ export default function AdminMaintenancePage() {
   const load = useCallback(
     (targetPage: number, reset: boolean) => {
       const requestId = ++requestIdRef.current;
-      setIsLoading(true);
-      setError(null);
 
       listMaintenanceForReview({
         page: targetPage,
@@ -55,6 +53,13 @@ export default function AdminMaintenancePage() {
         .finally(() => {
           if (requestId === requestIdRef.current) setIsLoading(false);
         });
+
+      queueMicrotask(() => {
+        if (requestId === requestIdRef.current) {
+          setIsLoading(true);
+          setError(null);
+        }
+      });
     },
     [search, statusFilter],
   );

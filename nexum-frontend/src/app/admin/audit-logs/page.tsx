@@ -40,8 +40,6 @@ export default function AdminAuditLogsPage() {
   const load = useCallback(
     (targetPage: number, reset: boolean) => {
       const requestId = ++requestIdRef.current;
-      setIsLoading(true);
-      setError(null);
 
       listAuditLogs({
         page: targetPage,
@@ -61,6 +59,13 @@ export default function AdminAuditLogsPage() {
         .finally(() => {
           if (requestId === requestIdRef.current) setIsLoading(false);
         });
+
+      queueMicrotask(() => {
+        if (requestId === requestIdRef.current) {
+          setIsLoading(true);
+          setError(null);
+        }
+      });
     },
     [entityType, action],
   );

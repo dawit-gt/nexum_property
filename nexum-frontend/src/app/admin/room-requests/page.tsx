@@ -28,16 +28,19 @@ export default function AdminRoomRequestsPage() {
   const [approveTarget, setApproveTarget] = useState<string | null>(null);
 
   const load = () => {
-    setIsLoading(true);
     listRoomRequestsForReview()
       .then((all) => setRequests(all.filter((r) => r.status === 'PENDING')))
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleApprove = async (id: string, durationMonths: number) => {

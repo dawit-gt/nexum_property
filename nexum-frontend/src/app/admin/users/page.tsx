@@ -41,9 +41,9 @@ function AdminUsersContent() {
   const load = useCallback(
     (targetPage: number, reset: boolean) => {
       const requestId = ++requestIdRef.current;
-      setIsLoading(true);
-      setError(null);
 
+      // Start the request immediately. All setState calls happen inside
+      // the promise chain so they are not synchronous inside the effect.
       listUsers({
         page: targetPage,
         limit: 10,
@@ -62,6 +62,15 @@ function AdminUsersContent() {
         .finally(() => {
           if (requestId === requestIdRef.current) setIsLoading(false);
         });
+
+      // Defer the loading flag so it is not a synchronous setState
+      // inside the useEffect that calls load().
+      queueMicrotask(() => {
+        if (requestId === requestIdRef.current) {
+          setIsLoading(true);
+          setError(null);
+        }
+      });
     },
     [search, filter],
   );

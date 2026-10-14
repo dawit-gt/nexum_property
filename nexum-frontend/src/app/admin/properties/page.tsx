@@ -31,16 +31,20 @@ export default function AdminPropertiesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const load = () => {
-    setIsLoading(true);
     listProperties()
       .then(setProperties)
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    // Defer so setState is not synchronous inside the effect
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleCreate = async (values: Record<string, string>) => {

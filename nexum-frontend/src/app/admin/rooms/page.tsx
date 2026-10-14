@@ -49,8 +49,6 @@ function AdminRoomsContent() {
   const load = useCallback(
     (targetPage: number, reset: boolean) => {
       const requestId = ++requestIdRef.current;
-      setIsLoading(true);
-      setError(null);
 
       listRoomsAdmin({
         page: targetPage,
@@ -71,6 +69,13 @@ function AdminRoomsContent() {
         .finally(() => {
           if (requestId === requestIdRef.current) setIsLoading(false);
         });
+
+      queueMicrotask(() => {
+        if (requestId === requestIdRef.current) {
+          setIsLoading(true);
+          setError(null);
+        }
+      });
     },
     [search, statusFilter, floorId],
   );

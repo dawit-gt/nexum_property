@@ -18,8 +18,8 @@ export function UserPicker({ mode, selectedIds, onChange }: UserPickerProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setIsLoading(true);
     const timeout = setTimeout(() => {
+      setIsLoading(true); // now inside the async callback → no longer synchronous in the effect
       listUsers({ page: 1, limit: 10, search: search || undefined, registrationStatus: 'APPROVED' })
         .then((result) => setResults(result.data))
         .finally(() => setIsLoading(false));

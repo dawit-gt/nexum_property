@@ -29,8 +29,6 @@ export default function RoomsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     listRooms({ page, limit: 10, search: search || undefined })
       .then((result) => {
@@ -41,10 +39,16 @@ export default function RoomsPage() {
       .catch((err) => !cancelled && setError(getApiErrorMessage(err)))
       .finally(() => !cancelled && setIsLoading(false));
 
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIsLoading(true);
+        setError(null);
+      }
+    });
+
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search]);
 
   const handleSearchChange = (value: string) => {

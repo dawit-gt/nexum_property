@@ -30,16 +30,21 @@ export function LocationPicker({ level, onChange }: LocationPickerProps) {
   }, []);
 
   useEffect(() => {
-    setBuildingId('');
-    setBuildings([]);
+    // Defer resets so they are not synchronous setState in the effect body
+    queueMicrotask(() => {
+      setBuildingId('');
+      setBuildings([]);
+    });
     if (propertyId && level !== 'property') {
       listBuildings(propertyId).then(setBuildings);
     }
   }, [propertyId, level]);
 
   useEffect(() => {
-    setFloorId('');
-    setFloors([]);
+    queueMicrotask(() => {
+      setFloorId('');
+      setFloors([]);
+    });
     if (buildingId && level === 'floor') {
       listFloors(buildingId).then(setFloors);
     }

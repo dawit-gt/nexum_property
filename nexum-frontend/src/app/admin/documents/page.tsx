@@ -27,16 +27,19 @@ export default function AdminDocumentsPage() {
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
 
   const load = () => {
-    setIsLoading(true);
     listDocumentsForReview('PENDING')
       .then(setDocuments)
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleApprove = async (id: string) => {

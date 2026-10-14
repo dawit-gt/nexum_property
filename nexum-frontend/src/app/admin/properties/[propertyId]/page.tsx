@@ -38,7 +38,6 @@ export default function AdminPropertyDetailPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const load = () => {
-    setIsLoading(true);
     Promise.all([getProperty(propertyId), listBuildings(propertyId)])
       .then(([prop, blds]) => {
         setProperty(prop);
@@ -46,11 +45,15 @@ export default function AdminPropertyDetailPage() {
       })
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setIsLoading(false));
+
+    queueMicrotask(() => {
+      setIsLoading(true);
+      setError(null);
+    });
   };
 
   useEffect(() => {
     if (user) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, propertyId]);
 
   const handleCreateBuilding = async (values: Record<string, string>) => {
