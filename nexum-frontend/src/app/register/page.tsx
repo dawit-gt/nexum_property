@@ -1,0 +1,106 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AuthShell } from '@/components/layout/auth-shell';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { apiPost, getApiErrorMessage } from '@/lib/api-client';
+import { registerSchema, type RegisterFormValues } from '@/lib/validations/auth';
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormValues>({ resolver: zodResolver(registerSchema) });
+
+  const onSubmit = async (values: RegisterFormValues) => {
+    setServerError(null);
+    try {
+      await apiPost('/auth/register', {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        phone: values.phone,
+        password: values.password,
+        telegramUsername: values.telegramUsername || undefined,
+      });
+      router.push('/login?registered=true');
+    } catch (err) {
+      setServerError(getApiErrorMessage(err));
+    }
+  };
+
+  return (
+    <AuthShell
+      title="Create your account"
+      subtitle="An admin will review your registration before you can use tenant features"
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link href="/login" className="font-medium text-slate-900 underline">
+            Log in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="firstName">First name</Label>
+            <Input id="firstName" autoComplete="given-name" {...register('firstName')} />
+            {errors.firstName ? <p className="text-sm text-red-600">{errors.firstName.message}</p> : null}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="lastName">Last name</Label>
+            <Input id="lastName" autoComplete="family-name" {...register('lastName')} />
+            {errors.lastName ? <p className="text-sm text-red-600">{errors.lastName.message}</p> : null}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" type="email" autoComplete="email" inputMode="email" {...register('email')} />
+          {errors.email ? <p className="text-sm text-red-600">{errors.email.message}</p> : null}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="phone">Phone</Label>
+          <Input id="phone" type="tel" autoComplete="tel" inputMode="tel" placeholder="+251911223344" {...register('phone')} />
+          {errors.phone ? <p className="text-sm text-red-600">{errors.phone.message}</p> : null}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="telegramUsername">Telegram username (optional)</Label>
+          <Input id="telegramUsername" {...register('telegramUsername')} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password">Password</Label>
+          <Input id="password" type="password" autoComplete="new-password" {...register('password')} />
+          {errors.password ? <p className="text-sm text-red-600">{errors.password.message}</p> : null}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <Input id="confirmPassword" type="password" autoComplete="new-password" {...register('confirmPassword')} />
+          {errors.confirmPassword ? <p className="text-sm text-red-600">{errors.confirmPassword.message}</p> : null}
+        </div>
+
+        {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
+
+        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating account...' : 'Create account'}
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}
