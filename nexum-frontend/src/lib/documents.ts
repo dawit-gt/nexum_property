@@ -1,4 +1,4 @@
-import { apiGet, apiPostForm } from '../api-client';
+import { ... } from '@/lib/api-client';
 import type { DocumentType, MyDocument } from '@/types/document';
 
 export function listMyDocuments() {
