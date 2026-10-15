@@ -62,7 +62,7 @@ export default function NewMaintenanceTicketPage() {
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="room">Room</Label>
-              <Select value={roomId} onValueChange={setRoomId}>
+              <Select value={roomId} onValueChange={(v) => setRoomId(v ?? '')}>
                 <SelectTrigger id="room" className="w-full">
                   <SelectValue placeholder="Select a room" />
                 </SelectTrigger>

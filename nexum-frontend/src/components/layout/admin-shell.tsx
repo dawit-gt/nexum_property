@@ -66,10 +66,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4">
           <div className="flex items-center gap-2 md:hidden">
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-              <SheetTrigger asChild>
-                <button aria-label="Open menu">
-                  <Menu className="size-5 text-slate-700" />
-                </button>
+              <SheetTrigger aria-label="Open menu">
+                <Menu className="size-5 text-slate-700" />
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-4">
                 <SheetTitle className="px-3 text-lg font-bold tracking-tight text-slate-900">

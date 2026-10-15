@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from '../api-client';
+import { apiGet, apiPatch } from '@/lib/api-client';
 import type { RoomRequest } from '@/types/lease';
 
 export function listMyRoomRequests() {

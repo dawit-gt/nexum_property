@@ -42,9 +42,9 @@ export default function PaymentsPage() {
       <div className="p-4">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-slate-900">Payments</h1>
-          <Button asChild size="sm">
-            <Link href="/payments/new">New payment</Link>
-          </Button>
+          <Link href="/payments/new">
+            <Button size="sm">New payment</Button>
+          </Link>
         </div>
 
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}

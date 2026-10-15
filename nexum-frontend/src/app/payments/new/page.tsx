@@ -78,7 +78,7 @@ export default function NewPaymentPage() {
           <form onSubmit={handleSubmit} className="mt-4 space-y-4" encType="multipart/form-data">
             <div className="space-y-1.5">
               <Label htmlFor="lease">Lease</Label>
-              <Select value={leaseId} onValueChange={setLeaseId}>
+              <Select value={leaseId} onValueChange={(v) => setLeaseId(v ?? '')}>
                 <SelectTrigger id="lease" className="w-full">
                   <SelectValue placeholder="Select a lease" />
                 </SelectTrigger>
