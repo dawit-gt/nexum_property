@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface AuthShellProps {
   title: string;
@@ -12,7 +13,8 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
     <div className="flex min-h-dvh flex-col justify-center bg-neutral-50 px-4 py-8 sm:items-center">
       <div className="w-full sm:max-w-sm">
         <div className="mb-6 text-center">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-slate-900">
+          <Link href="/" className="inline-flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
+            <Image src="/logo.png" alt="" width={40} height={40} priority />
             Nexum
           </Link>
           <h1 className="mt-4 text-xl font-semibold text-slate-900">{title}</h1>

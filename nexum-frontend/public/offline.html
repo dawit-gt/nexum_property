@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nexum — offline</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+             justify-content: center; gap: 12px; padding: 24px; text-align: center;
+             font-family: system-ui, sans-serif; background: #fafafa; color: #0f172a; }
+      img { width: 64px; height: 64px; }
+      p { margin: 0; color: #64748b; font-size: 14px; }
+      button { margin-top: 8px; padding: 10px 20px; border: 0; border-radius: 8px;
+               background: #0f172a; color: #fff; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <img src="/icons/icon-192.png" alt="" />
+    <h1 style="font-size:18px;margin:0">You&apos;re offline</h1>
+    <p>Nexum needs an internet connection. Check your connection and try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </body>
+</html>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, FileText, Receipt, ClipboardList, Building2,
@@ -57,7 +58,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-dvh bg-neutral-50 md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden w-64 flex-shrink-0 border-r border-slate-200 bg-white p-4 md:block">
-        <p className="px-3 text-lg font-bold tracking-tight text-slate-900">Nexum Admin</p>
+        <div className="flex items-center gap-2 px-3">
+          <Image src="/logo.png" alt="" width={28} height={28} />
+          <p className="text-lg font-bold tracking-tight text-slate-900">Nexum Admin</p>
+        </div>
         <div className="mt-6">
           <NavLinks />
         </div>
@@ -71,7 +75,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 <Menu className="size-5 text-slate-700" />
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-4">
-                <SheetTitle className="px-3 text-lg font-bold tracking-tight text-slate-900">
+                <SheetTitle className="flex items-center gap-2 px-3 text-lg font-bold tracking-tight text-slate-900">
+                  <Image src="/logo.png" alt="" width={24} height={24} />
                   Nexum Admin
                 </SheetTitle>
                 <div className="mt-6">
@@ -79,7 +84,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 </div>
               </SheetContent>
             </Sheet>
-            <span className="text-base font-bold tracking-tight text-slate-900">Nexum Admin</span>
+            <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-900">
+              <Image src="/logo.png" alt="" width={24} height={24} />
+              Nexum Admin
+            </span>
           </div>
           <span className="hidden text-sm text-slate-500 md:inline">Signed in as {user?.firstName}</span>
           <button onClick={logout} className="flex items-center gap-1.5 text-sm text-slate-500" aria-label="Log out">
