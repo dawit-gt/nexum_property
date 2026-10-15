@@ -193,7 +193,11 @@ export default function RequestsPage() {
                       </div>
                       <Badge variant={toneForStatus(m.status)}>{m.status}</Badge>
                     </div>
-                    {m.adminNotes ? <p className="mt-2 text-sm text-slate-500">Note: {m.adminNotes}</p> : null}
+                    <p className="mt-2 text-xs text-slate-400">
+                      Reported {formatDate(m.createdAt)}
+                      {m.resolvedAt ? ` · Resolved ${formatDate(m.resolvedAt)}` : ''}
+                    </p>
+                    {m.adminNotes ? <p className="mt-1 text-sm text-slate-500">Note: {m.adminNotes}</p> : null}
                   </div>
                 ))}
               </div>

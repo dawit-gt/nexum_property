@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, FileText, Receipt, ClipboardList, Building2,
-  Users, Wrench, MessageSquare, History, LogOut, Menu,
+  Users, Wrench, MessageSquare, History, LogOut, Menu, FileSignature,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: '/admin/documents', label: 'Documents', icon: FileText },
   { href: '/admin/payments', label: 'Payments', icon: Receipt },
   { href: '/admin/room-requests', label: 'Room Requests', icon: ClipboardList },
+  { href: '/admin/leases', label: 'Leases', icon: FileSignature },
   { href: '/admin/properties', label: 'Properties & Rooms', icon: Building2 },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench },

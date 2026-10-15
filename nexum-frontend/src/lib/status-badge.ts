@@ -13,6 +13,8 @@ const STATUS_TONES: Record<string, BadgeTone> = {
   OCCUPIED: 'secondary',
   MAINTENANCE: 'secondary',
   INACTIVE: 'outline',
+  IN_PROGRESS: 'secondary',
+  RESOLVED: 'default',
 };
 
 export function toneForStatus(status: string): BadgeTone {

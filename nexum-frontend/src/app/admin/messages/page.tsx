@@ -5,6 +5,7 @@ import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UserPicker } from '@/components/admin/user-picker';
 import { LocationPicker } from '@/components/admin/location-picker';
+import { InboxList } from '@/components/messages/inbox-list';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,6 +123,11 @@ export default function AdminMessagesPage() {
   return (
     <AdminShell>
       <h1 className="text-lg font-semibold text-slate-900">Messages</h1>
+
+      <h2 className="mt-4 text-base font-semibold text-slate-900">Inbox</h2>
+      <div className="mt-3">
+        <InboxList />
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="font-medium text-slate-900">Compose</h2>

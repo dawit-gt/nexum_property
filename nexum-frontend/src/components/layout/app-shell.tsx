@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Building2, ClipboardList, Receipt, Bell, LogOut } from 'lucide-react';
+import { Home, Building2, ClipboardList, Receipt, Bell, LogOut, User, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useUnreadCount } from '@/lib/use-unread-count';
+import { useUnreadMessageCount } from '@/lib/use-unread-message-count';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -18,12 +19,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const unreadCount = useUnreadCount();
+  const unreadMessages = useUnreadMessageCount();
 
   return (
     <div className="min-h-dvh bg-neutral-50">
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4">
         <span className="text-base font-bold tracking-tight text-slate-900">Nexum</span>
         <div className="flex items-center gap-4">
+          <Link href="/messages" className="relative" aria-label="Messages">
+            <MessageSquare className="size-5 text-slate-600" />
+            {unreadMessages > 0 ? (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
+                {unreadMessages > 9 ? '9+' : unreadMessages}
+              </span>
+            ) : null}
+          </Link>
           <Link href="/notifications" className="relative" aria-label="Notifications">
             <Bell className="size-5 text-slate-600" />
             {unreadCount > 0 ? (
@@ -31,6 +41,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             ) : null}
+          </Link>
+          <Link href="/profile" aria-label="Profile">
+            <User className="size-5 text-slate-600" />
           </Link>
           <button onClick={logout} className="flex items-center gap-1.5 text-sm text-slate-500" aria-label="Log out">
             <span className="hidden sm:inline">{user?.firstName}</span>

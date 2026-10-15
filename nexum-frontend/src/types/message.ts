@@ -10,3 +10,24 @@ export interface SentMessage {
   createdAt: string;
   recipients: { recipientId: string; isRead: boolean }[];
 }
+
+export interface InboxItem {
+  id: string;
+  messageId: string;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+  message: {
+    id: string;
+    subject: string;
+    body: string;
+    senderId: string;
+    createdAt: string;
+    sender: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      role: 'ADMIN' | 'USER';
+    };
+  };
+}

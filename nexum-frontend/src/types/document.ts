@@ -23,3 +23,4 @@ export interface DocumentWithSignedUrl extends Omit<AdminDocument, 'user'> {
   signedUrlExpiresInSeconds: number;
   user?: { id: string; firstName: string; lastName: string; email: string };
 }
+export type MyDocument = Omit<AdminDocument, 'user'>;

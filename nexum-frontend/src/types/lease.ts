@@ -25,3 +25,8 @@ export interface Lease {
   createdAt: string;
   room: { roomNumber: string };
 }
+
+export interface AdminLease extends Lease {
+  user: { id: string; firstName: string; lastName: string; email: string };
+  room: { id: string; roomNumber: string };
+}

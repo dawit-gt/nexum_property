@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDashboardOverview } from '@/lib/api/dashboard';
+import { downloadPaymentsCsv } from '@/lib/api/admin-leases';
 import { getApiErrorMessage } from '@/lib/api-client';
 import type { DashboardOverview } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
@@ -59,7 +61,16 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminShell>
-      <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => downloadPaymentsCsv().catch((err) => setError(getApiErrorMessage(err)))}
+        >
+          Export payments CSV
+        </Button>
+      </div>
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
