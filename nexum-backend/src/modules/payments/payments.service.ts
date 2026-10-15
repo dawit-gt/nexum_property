@@ -23,6 +23,7 @@ import {
   STORAGE_BUCKETS,
 } from '../../common/constants/storage.constants';
 import { assertValidUpload } from '../../common/utils/file-validation.util';
+import { addMonthsMinusOneDay, addOneDay } from '../../common/utils/date.util';
 
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
@@ -39,30 +40,6 @@ function generatePaymentNumber(): string {
   const rand = randomBytes(2).toString('hex').toUpperCase();
 
   return `PMT-${stamp}-${rand}`;
-}
-
-/**
- * periodEnd = periodStart + N months, minus 1 day — so a 1-month payment
- * starting Aug 1 covers through Aug 31, not into Sep 1.
- */
-function addMonthsMinusOneDay(
-  start: Date,
-  months: number,
-): Date {
-  const end = new Date(start);
-
-  end.setMonth(end.getMonth() + months);
-  end.setDate(end.getDate() - 1);
-
-  return end;
-}
-
-function addOneDay(date: Date): Date {
-  const next = new Date(date);
-
-  next.setDate(next.getDate() + 1);
-
-  return next;
 }
 
 const PAYMENT_SELECT = {
@@ -159,6 +136,7 @@ export class PaymentsService {
     const periodEndDate = addMonthsMinusOneDay(
       periodStartDate,
       dto.monthsCovered,
+      lease.startDate.getUTCDate(),
     );
 
     assertValidUpload(file);

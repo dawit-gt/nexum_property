@@ -24,12 +24,7 @@ import { AdminSendMessageDto } from './dto/admin-send-message.dto';
 import { ListInboxQueryDto } from './dto/list-inbox-query.dto';
 
 import { paginate } from '../../common/utils/paginate.util';
-
-function addOneDay(date: Date): Date {
-  const next = new Date(date);
-  next.setDate(next.getDate() + 1);
-  return next;
-}
+import { addOneDay } from '../../common/utils/date.util';
 
 @Injectable()
 export class MessagesService {
