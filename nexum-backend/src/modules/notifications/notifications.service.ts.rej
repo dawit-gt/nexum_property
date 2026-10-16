@@ -1,0 +1,70 @@
+diff a/nexum-backend/src/modules/notifications/notifications.service.ts b/nexum-backend/src/modules/notifications/notifications.service.ts	(rejected hunks)
+@@ -29,6 +29,14 @@ export interface SendNotificationParams {
+   content: string;
+   channels: NotificationChannel[];
+   actionUrl?: string;
++  /**
++   * Defaults to true. When true, PUSH is added if the user has a subscribed
++   * device and TELEGRAM is added if the user has connected Telegram (both
++   * still subject to the user's channel preferences). Pass false when the
++   * caller has already chosen the exact channels, e.g. admin alerts that
++   * follow the admin's own alert preferences.
++   */
++  connectedChannels?: boolean;
+ }
+ 
+ const CHANNEL_PREFERENCE_FIELD: Record<NotificationChannel, string> = {
+@@ -39,6 +47,19 @@ const CHANNEL_PREFERENCE_FIELD: Record<NotificationChannel, string> = {
+   PUSH: 'pushEnabled',
+ };
+ 
++// Where a tapped push notification should take the user in the web app.
++const PUSH_URL_BY_TYPE: Record<NotificationType, string> = {
++  REGISTRATION: '/profile',
++  DOCUMENT: '/profile',
++  ROOM_REQUEST: '/requests',
++  LEASE: '/leases',
++  PAYMENT: '/payments',
++  PAYMENT_DUE_ALERT: '/admin/payments',
++  MAINTENANCE: '/requests',
++  ANNOUNCEMENT: '/messages',
++  SYSTEM: '/messages',
++};
++
+ @Injectable()
+ export class NotificationsService {
+   constructor(
+@@ -119,7 +140,24 @@ export class NotificationsService {
+   async send(params: SendNotificationParams) {
+     const prefs = await this.getOrCreatePreference(params.userId);
+ 
+-    const enabledChannels = params.channels.filter(
++    // Callers ask for the baseline channels (IN_APP/EMAIL). Push and Telegram
++    // are added automatically for users who have actually set them up, so no
++    // delivery is created (and none can "fail") for devices that don't exist.
++    const requestedChannels = new Set<NotificationChannel>(params.channels);
++
++    if (params.connectedChannels !== false) {
++      const [pushDevices, telegram] = await Promise.all([
++        this.prisma.pushSubscription.count({
++          where: { userId: params.userId },
++        }),
++        this.telegramConnections.findForUser(params.userId),
++      ]);
++
++      if (pushDevices > 0) requestedChannels.add(NotificationChannel.PUSH);
++      if (telegram?.isActive) requestedChannels.add(NotificationChannel.TELEGRAM);
++    }
++
++    const enabledChannels = [...requestedChannels].filter(
+       (ch) =>
+         prefs[
+           CHANNEL_PREFERENCE_FIELD[ch] as keyof typeof prefs
+@@ -214,6 +252,7 @@ export class NotificationsService {
+         params.userId,
+         params.title,
+         params.content,
++        PUSH_URL_BY_TYPE[params.type],
+       );
+ 
+       await this.prisma.notificationDelivery.update({

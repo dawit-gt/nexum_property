@@ -101,6 +101,7 @@ export class DueDateService {
           content: `Room ${lease.room.roomNumber}'s lease has a payment due on ${nextDue.toDateString()}.`,
           channels,
           actionUrl: marker,
+          connectedChannels: false,
         });
       }
       alertsSent++;

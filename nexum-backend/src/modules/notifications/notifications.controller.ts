@@ -156,7 +156,7 @@ export class NotificationsController {
       '[ADMIN, testing only] Manually trigger a notification to verify the pipeline',
   })
   test(@Body() dto: TestNotificationDto) {
-    return this.notificationsService.send(dto);
+    return this.notificationsService.send({ ...dto, connectedChannels: false });
   }
 
   @Get('deliveries/:deliveryId/sms-handoff')

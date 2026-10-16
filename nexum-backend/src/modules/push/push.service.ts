@@ -48,7 +48,7 @@ export class PushService {
    * treated as a hard failure; the overall send only fails if EVERY
    * subscription fails.
    */
-  async sendToUser(userId: string, title: string, body: string): Promise<{ success: boolean; error?: string }> {
+  async sendToUser(userId: string, title: string, body: string, url?: string): Promise<{ success: boolean; error?: string }> {
     if (!this.configured) {
       return { success: false, error: 'Web Push is not configured (missing VAPID keys)' };
     }
@@ -58,7 +58,7 @@ export class PushService {
       return { success: false, error: 'No push subscriptions for this user' };
     }
 
-    const payload = JSON.stringify({ title, body });
+    const payload = JSON.stringify({ title, body, url });
     let anySucceeded = false;
     let lastError: string | undefined;
 

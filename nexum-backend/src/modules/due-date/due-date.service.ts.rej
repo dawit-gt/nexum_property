@@ -1,0 +1,9 @@
+diff a/nexum-backend/src/modules/due-date/due-date.service.ts b/nexum-backend/src/modules/due-date/due-date.service.ts	(rejected hunks)
+@@ -101,6 +101,7 @@ export class DueDateService {
+           content: `Room ${lease.room.roomNumber}'s lease has a payment due on ${nextDue.toDateString()}.`,
+           channels,
+           actionUrl: marker,
++          connectedChannels: false,
+         });
+       }
+       alertsSent++;

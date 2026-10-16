@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
+import { AdminAlertPreferencesCard } from '@/components/pwa/admin-alert-preferences-card';
+import { DeviceSettingsCard } from '@/components/pwa/device-settings-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDashboardOverview } from '@/lib/api/dashboard';
@@ -110,6 +112,12 @@ export default function AdminDashboardPage() {
           </div>
         </>
       )}
+
+      <h2 className="mt-6 text-sm font-semibold text-slate-700">App &amp; notifications</h2>
+      <div className="mt-2 space-y-3">
+        <DeviceSettingsCard />
+        <AdminAlertPreferencesCard />
+      </div>
     </AdminShell>
   );
 }

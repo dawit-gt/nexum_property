@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/lib/auth-context';
 import { AppShell } from '@/components/layout/app-shell';
+import { DeviceSettingsCard } from '@/components/pwa/device-settings-card';
+import { NotificationPreferencesCard } from '@/components/pwa/notification-preferences-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -300,6 +302,13 @@ export default function ProfilePage() {
               {uploading ? 'Uploading...' : 'Upload'}
             </Button>
           </form>
+        </section>
+
+        {/* App & notifications */}
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold text-slate-900">App &amp; notifications</h2>
+          <DeviceSettingsCard />
+          <NotificationPreferencesCard />
         </section>
 
         {/* Change password */}

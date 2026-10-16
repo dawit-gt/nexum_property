@@ -22,3 +22,32 @@ export interface AppNotification {
   createdAt: string;
   deliveries: NotificationDelivery[];
 }
+
+export interface NotificationPreference {
+  emailEnabled: boolean;
+  telegramEnabled: boolean;
+  smsEnabled: boolean;
+  inAppEnabled: boolean;
+  pushEnabled: boolean;
+}
+
+export interface AdminNotificationPreference {
+  paymentsDueInApp: boolean;
+  paymentsDueEmail: boolean;
+  paymentsDuePush: boolean;
+  maintenanceInApp: boolean;
+  maintenanceEmail: boolean;
+  registrationInApp: boolean;
+  registrationEmail: boolean;
+}
+
+export interface TelegramStatus {
+  connected: boolean;
+  telegramUsername: string | null;
+}
+
+export interface TelegramConnectLink {
+  code: string;
+  deepLink?: string;
+  expiresInSeconds: number;
+}
