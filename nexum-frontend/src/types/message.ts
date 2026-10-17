@@ -44,7 +44,13 @@ export interface MessageDeliveryItem {
 
 export interface MessageDeliveryRecipient {
   notificationId: string;
-  user: { id: string; firstName: string; lastName: string; phone: string };
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    telegramUsername: string | null;
+  };
   deliveries: MessageDeliveryItem[];
 }
 

@@ -3,13 +3,11 @@
 import { ToggleRow } from '@/components/ui/toggle-row';
 import type { NotificationChannel } from '@/types/notification';
 
-type PickableChannel = Exclude<NotificationChannel, 'IN_APP'>;
+type PickableChannel = 'EMAIL' | 'PUSH';
 
 const OPTIONS: { channel: PickableChannel; label: string; description?: string }[] = [
   { channel: 'EMAIL', label: 'Email' },
   { channel: 'PUSH', label: 'Push notification', description: 'Only reaches people who turned push on.' },
-  { channel: 'TELEGRAM', label: 'Telegram', description: 'Only reaches people who connected Telegram.' },
-  { channel: 'SMS', label: 'SMS', description: 'You send it from your own phone after sending.' },
 ];
 
 interface ChannelPickerProps {
@@ -55,11 +53,9 @@ export function ChannelPicker({ value, onChange }: ChannelPickerProps) {
         ) : null}
       </div>
 
-      {!automatic ? (
-        <p className="mt-2 text-xs text-slate-500">
-          A person who switched a channel off in their own settings will not receive it.
-        </p>
-      ) : null}
+      <p className="mt-2 text-xs text-slate-500">
+        To reach someone on SMS or Telegram, use the buttons under Delivery details after sending.
+      </p>
     </div>
   );
 }

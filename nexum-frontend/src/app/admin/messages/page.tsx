@@ -109,13 +109,14 @@ export default function AdminMessagesPage() {
 
     setIsSending(true);
     try {
-      await sendBroadcast(payload);
+      const created = await sendBroadcast(payload);
       setNotice('Message sent');
       setSubject('');
       setBody('');
       setSelectedUserIds([]);
       setLocationId(undefined);
       loadSent();
+      setExpandedId(created.id);
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -216,7 +217,9 @@ export default function AdminMessagesPage() {
                   {expandedId === m.id ? 'Hide delivery details' : 'Delivery details'}
                 </Button>
 
-                {expandedId === m.id ? <DeliveryDetails messageId={m.id} /> : null}
+                {expandedId === m.id ? (
+                  <DeliveryDetails messageId={m.id} subject={m.subject} body={m.body} />
+                ) : null}
               </div>
             );
           })
