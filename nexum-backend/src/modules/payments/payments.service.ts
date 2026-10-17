@@ -154,7 +154,7 @@ export class PaymentsService {
     );
 
     try {
-      return await this.prisma.payment.create({
+      const payment = await this.prisma.payment.create({
         data: {
           paymentNumber: generatePaymentNumber(),
           userId,
@@ -173,6 +173,16 @@ export class PaymentsService {
         },
         select: PAYMENT_SELECT,
       });
+
+      await this.notifications.notifyAdmins({
+        kind: 'payment',
+        type: NotificationType.PAYMENT,
+        title: 'New payment to review',
+        content: `Payment ${payment.paymentNumber} was submitted and is waiting for review.`,
+        actionUrl: '/admin/payments',
+      });
+
+      return payment;
     } catch (error) {
       // Roll back the orphaned file if the DB write fails.
       await this.storage.delete(

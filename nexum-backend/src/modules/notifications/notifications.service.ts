@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -9,6 +10,8 @@ import {
   NotificationChannel,
   NotificationStatus,
   NotificationType,
+  UserRole,
+  UserStatus,
 } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
@@ -60,8 +63,23 @@ const PUSH_URL_BY_TYPE: Record<NotificationType, string> = {
   SYSTEM: '/messages',
 };
 
+// A real in-app path from the caller wins; otherwise fall back to the type.
+function pushUrlFor(params: { type: NotificationType; actionUrl?: string }) {
+  return params.actionUrl?.startsWith('/')
+    ? params.actionUrl
+    : PUSH_URL_BY_TYPE[params.type];
+}
+
+export type AdminAlertKind =
+  | 'registration'
+  | 'maintenance'
+  | 'payment'
+  | 'roomRequest';
+
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
@@ -121,6 +139,64 @@ export class NotificationsService {
       where: { userId },
       data: dto,
     });
+  }
+
+  // ---------- Admin alerts ----------
+
+  /**
+   * Alerts every active admin about new tenant activity. Never throws: a
+   * notification problem must not make the tenant's own action fail.
+   *
+   * Registration and maintenance follow each admin's saved alert
+   * preferences. Payments and room requests are always in-app. Push is
+   * added automatically for admins who turned it on for a device.
+   */
+  async notifyAdmins(params: {
+    kind: AdminAlertKind;
+    type: NotificationType;
+    title: string;
+    content: string;
+    actionUrl: string;
+  }) {
+    try {
+      const admins = await this.prisma.user.findMany({
+        where: { role: UserRole.ADMIN, status: UserStatus.ACTIVE },
+        select: { id: true },
+      });
+
+      await Promise.all(
+        admins.map(async (admin) => {
+          const prefs = await this.getOrCreateAdminPreference(admin.id);
+          const channels: NotificationChannel[] = [];
+
+          if (params.kind === 'registration') {
+            if (prefs.registrationInApp) channels.push(NotificationChannel.IN_APP);
+            if (prefs.registrationEmail) channels.push(NotificationChannel.EMAIL);
+          } else if (params.kind === 'maintenance') {
+            if (prefs.maintenanceInApp) channels.push(NotificationChannel.IN_APP);
+            if (prefs.maintenanceEmail) channels.push(NotificationChannel.EMAIL);
+          } else {
+            channels.push(NotificationChannel.IN_APP);
+          }
+
+          // An admin who switched this alert type fully off gets nothing.
+          if (channels.length === 0) return;
+
+          await this.send({
+            userId: admin.id,
+            type: params.type,
+            title: params.title,
+            content: params.content,
+            channels,
+            actionUrl: params.actionUrl,
+          });
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Could not notify admins: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   // ---------- Core send ----------
@@ -252,7 +328,7 @@ export class NotificationsService {
         params.userId,
         params.title,
         params.content,
-        PUSH_URL_BY_TYPE[params.type],
+        pushUrlFor(params),
       );
 
       await this.prisma.notificationDelivery.update({

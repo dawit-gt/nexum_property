@@ -94,7 +94,7 @@ export class RoomRequestsService {
       expiresAt,
     );
 
-    return this.prisma.roomRequest.create({
+    const request = await this.prisma.roomRequest.create({
       data: {
         userId,
         roomId: dto.roomId,
@@ -103,6 +103,16 @@ export class RoomRequestsService {
         status: RequestStatus.PENDING,
       },
     });
+
+    await this.notifications.notifyAdmins({
+      kind: 'roomRequest',
+      type: NotificationType.ROOM_REQUEST,
+      title: 'New room request',
+      content: `A tenant requested Room ${room.roomNumber}.`,
+      actionUrl: '/admin/room-requests',
+    });
+
+    return request;
   }
 
   async findMine(userId: string) {

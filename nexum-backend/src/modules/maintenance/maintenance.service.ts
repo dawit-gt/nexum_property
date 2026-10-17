@@ -42,7 +42,7 @@ export class MaintenanceService {
     }
 
     try {
-      return await this.prisma.maintenanceRequest.create({
+      const request = await this.prisma.maintenanceRequest.create({
         data: {
           ticketNumber: generateTicketNumber(),
           userId,
@@ -54,6 +54,16 @@ export class MaintenanceService {
           status: MaintenanceStatus.PENDING,
         },
       });
+
+      await this.notifications.notifyAdmins({
+        kind: 'maintenance',
+        type: NotificationType.MAINTENANCE,
+        title: 'New maintenance request',
+        content: `${request.ticketNumber}: ${dto.issueTitle} (Room ${room.roomNumber})`,
+        actionUrl: '/admin/maintenance',
+      });
+
+      return request;
     } catch (error) {
       if (imagePath) {
         await this.storage.delete(STORAGE_BUCKETS.MAINTENANCE_IMAGES, imagePath);

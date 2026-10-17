@@ -6,14 +6,16 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, FileText, Receipt, ClipboardList, Building2,
-  Users, Wrench, MessageSquare, History, LogOut, Menu, FileSignature,
+  Users, Wrench, MessageSquare, History, LogOut, Menu, FileSignature, Bell,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useUnreadCount } from '@/lib/use-unread-count';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/notifications', label: 'Notifications', icon: Bell },
   { href: '/admin/documents', label: 'Documents', icon: FileText },
   { href: '/admin/payments', label: 'Payments', icon: Receipt },
   { href: '/admin/room-requests', label: 'Room Requests', icon: ClipboardList },
@@ -27,6 +29,7 @@ const NAV_ITEMS = [
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const unreadCount = useUnreadCount();
   return (
     <nav className="space-y-1">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -43,6 +46,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           >
             <Icon className="size-4" />
             {label}
+            {href === '/admin/notifications' && unreadCount > 0 ? (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            ) : null}
           </Link>
         );
       })}

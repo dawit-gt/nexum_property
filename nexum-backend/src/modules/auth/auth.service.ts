@@ -8,11 +8,13 @@ import { JwtService } from '@nestjs/jwt';
 import {
   RegistrationStatus,
   UserStatus,
+  NotificationType,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 import { PrismaService } from '../../database/prisma.service';
 import { EmailService } from '../../common/services/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -54,6 +56,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly emailService: EmailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async getMe(userId: string): Promise<SafeUser> {
@@ -107,6 +110,14 @@ export class AuthService {
           create: {},
         },
       },
+    });
+
+    await this.notifications.notifyAdmins({
+      kind: 'registration',
+      type: NotificationType.REGISTRATION,
+      title: 'New registration',
+      content: `${dto.firstName} ${dto.lastName} registered and is waiting for approval.`,
+      actionUrl: '/admin/users?registrationStatus=PENDING',
     });
 
     return this.toSafeUser(user);
