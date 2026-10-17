@@ -65,6 +65,8 @@ export class MessagesService {
       dto.body,
       MessageTargetType.SELECTED,
       admins.map((a) => a.id),
+      undefined,
+      { actionBase: '/admin/messages' },
     );
   }
 
@@ -94,6 +96,7 @@ export class MessagesService {
         buildingId: dto.buildingId,
         floorId: dto.floorId,
       },
+      { channels: dto.channels, actionBase: '/messages' },
     );
   }
 
@@ -266,6 +269,7 @@ export class MessagesService {
     targetType: MessageTargetType,
     recipientIds: string[],
     targetFilter?: Record<string, unknown>,
+    options?: { channels?: NotificationChannel[]; actionBase?: string },
   ) {
     const message = await this.prisma.message.create({
       data: {
@@ -292,6 +296,19 @@ export class MessagesService {
     // regular system notification.
     const isBroadcast = targetType.startsWith('GROUP_');
 
+    // An admin who picked channels gets exactly those (plus in-app). With no
+    // pick, the default applies and each recipient's connected push and
+    // Telegram are added automatically.
+    const pickedChannels = options?.channels ?? [];
+    const hasPickedChannels = pickedChannels.length > 0;
+    const channels: NotificationChannel[] = hasPickedChannels
+      ? Array.from(new Set([NotificationChannel.IN_APP, ...pickedChannels]))
+      : [NotificationChannel.IN_APP, NotificationChannel.EMAIL];
+
+    // Ties every notification back to its message, so the admin can see
+    // per-recipient delivery history (and a tap opens the right page).
+    const actionUrl = `${options?.actionBase ?? '/messages'}#${message.id}`;
+
     await Promise.all(
       recipientIds.map((userId) =>
         this.notifications.send({
@@ -301,15 +318,60 @@ export class MessagesService {
             : NotificationType.SYSTEM,
           title: `New message: ${subject}`,
           content: body,
-          channels: [
-            NotificationChannel.IN_APP,
-            NotificationChannel.EMAIL,
-          ],
+          channels,
+          actionUrl,
+          connectedChannels: !hasPickedChannels,
         }),
       ),
     );
 
     return message;
+  }
+
+  /**
+   * Admin: per-recipient, per-channel delivery status for one message.
+   * Notifications are tied to their message through the actionUrl set at
+   * send time, so messages sent before this feature have no history.
+   */
+  async findDeliveries(messageId: string) {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const notifications = await this.prisma.notification.findMany({
+      where: {
+        actionUrl: {
+          in: [`/messages#${messageId}`, `/admin/messages#${messageId}`],
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        user: {
+          select: { id: true, firstName: true, lastName: true, phone: true },
+        },
+        deliveries: {
+          select: {
+            id: true,
+            channel: true,
+            status: true,
+            errorMessage: true,
+            attempts: true,
+          },
+        },
+      },
+    });
+
+    return notifications.map((n) => ({
+      notificationId: n.id,
+      user: n.user,
+      deliveries: n.deliveries,
+    }));
   }
 
   /**

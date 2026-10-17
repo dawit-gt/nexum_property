@@ -5,6 +5,8 @@ import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UserPicker } from '@/components/admin/user-picker';
 import { LocationPicker } from '@/components/admin/location-picker';
+import { ChannelPicker } from '@/components/admin/channel-picker';
+import { DeliveryDetails } from '@/components/admin/delivery-details';
 import { InboxList } from '@/components/messages/inbox-list';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { sendBroadcast, listSentMessages, type BroadcastPayload } from '@/lib/api/admin-messages';
 import { getApiErrorMessage } from '@/lib/api-client';
 import type { MessageTargetType, SentMessage } from '@/types/message';
+import type { NotificationChannel } from '@/types/notification';
 
 const TARGET_OPTIONS: { value: MessageTargetType; label: string }[] = [
   { value: 'INDIVIDUAL', label: 'One tenant' },
@@ -38,6 +41,8 @@ export default function AdminMessagesPage() {
   const [targetType, setTargetType] = useState<MessageTargetType>('GROUP_ALL');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [locationId, setLocationId] = useState<string | undefined>(undefined);
+  const [channels, setChannels] = useState<NotificationChannel[] | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -69,7 +74,7 @@ export default function AdminMessagesPage() {
   };
 
   const buildPayload = (): BroadcastPayload | null => {
-    const base = { subject, body, targetType };
+    const base = { subject, body, targetType, ...(channels ? { channels } : {}) };
     switch (targetType) {
       case 'INDIVIDUAL':
         if (!selectedUserIds[0]) return null;
@@ -168,6 +173,8 @@ export default function AdminMessagesPage() {
         {targetType === 'GROUP_BUILDING' ? <LocationPicker level="building" onChange={setLocationId} /> : null}
         {targetType === 'GROUP_FLOOR' ? <LocationPicker level="floor" onChange={setLocationId} /> : null}
 
+        <ChannelPicker value={channels} onChange={setChannels} />
+
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         {notice ? <p className="text-sm text-green-700">{notice}</p> : null}
 
@@ -198,6 +205,18 @@ export default function AdminMessagesPage() {
                 <p className="mt-1.5 text-xs text-slate-400">
                   {m.recipients.length} recipient{m.recipients.length !== 1 ? 's' : ''} · {readCount} read
                 </p>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 px-0"
+                  onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
+                >
+                  {expandedId === m.id ? 'Hide delivery details' : 'Delivery details'}
+                </Button>
+
+                {expandedId === m.id ? <DeliveryDetails messageId={m.id} /> : null}
               </div>
             );
           })

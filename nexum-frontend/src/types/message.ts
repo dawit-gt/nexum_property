@@ -1,3 +1,5 @@
+import type { DeliveryStatus, NotificationChannel } from './notification';
+
 export type MessageTargetType =
   | 'INDIVIDUAL' | 'SELECTED' | 'GROUP_ALL' | 'GROUP_PROPERTY'
   | 'GROUP_BUILDING' | 'GROUP_FLOOR' | 'GROUP_PAYMENTS_DUE_7_DAYS';
@@ -30,4 +32,24 @@ export interface InboxItem {
       role: 'ADMIN' | 'USER';
     };
   };
+}
+
+export interface MessageDeliveryItem {
+  id: string;
+  channel: NotificationChannel;
+  status: DeliveryStatus;
+  errorMessage: string | null;
+  attempts: number;
+}
+
+export interface MessageDeliveryRecipient {
+  notificationId: string;
+  user: { id: string; firstName: string; lastName: string; phone: string };
+  deliveries: MessageDeliveryItem[];
+}
+
+export interface SmsHandoff {
+  smsLink: string;
+  qrCodeDataUrl: string;
+  phone: string;
 }

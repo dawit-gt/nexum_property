@@ -104,6 +104,17 @@ export class MessagesController {
     return this.messagesService.unreadCount(user.id);
   }
 
+  @Get(':id/deliveries')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      '[ADMIN] Per-recipient, per-channel delivery status for one message',
+  })
+  deliveries(@Param('id') id: string) {
+    return this.messagesService.findDeliveries(id);
+  }
+
   @Patch(':id/read')
   @ApiOperation({
     summary: 'Mark a received message as read',

@@ -4,11 +4,12 @@ import {
   IsArray,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
   ValidateIf,
 } from 'class-validator';
-import { MessageTargetType } from '@prisma/client';
+import { MessageTargetType, NotificationChannel } from '@prisma/client';
 
 export class AdminSendMessageDto {
   @ApiProperty({ example: 'Water interruption notice' })
@@ -51,4 +52,16 @@ export class AdminSendMessageDto {
   @ValidateIf((dto: AdminSendMessageDto) => dto.targetType === MessageTargetType.GROUP_FLOOR)
   @IsUUID()
   floorId?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: NotificationChannel,
+    isArray: true,
+    description:
+      'Channels to use. Omit to use each recipient\'s own preferred channels. IN_APP is always included.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(NotificationChannel, { each: true })
+  channels?: NotificationChannel[];
 }
