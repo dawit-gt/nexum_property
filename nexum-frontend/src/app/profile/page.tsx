@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/lib/auth-context';
 import { AppShell } from '@/components/layout/app-shell';
+import { ChangeEmailCard } from '@/components/profile/change-email-card';
+import { ProfileDetailsCard } from '@/components/profile/profile-details-card';
 import { DeviceSettingsCard } from '@/components/pwa/device-settings-card';
 import { NotificationPreferencesCard } from '@/components/pwa/notification-preferences-card';
 import { Button } from '@/components/ui/button';
@@ -85,7 +87,10 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (user) loadDocs();
+    if (!user) return;
+    queueMicrotask(() => {
+      void loadDocs();
+    });
   }, [user, loadDocs]);
 
   // Only the newest version of each document (older versions are history)
@@ -136,7 +141,7 @@ export default function ProfilePage() {
     try {
       const full = await getDocument(doc.id);
       if (tab) tab.location.href = full.signedUrl;
-      else window.location.href = full.signedUrl;
+      else window.location.assign(full.signedUrl);
     } catch (err) {
       tab?.close();
       setDocError(getApiErrorMessage(err));
@@ -189,21 +194,7 @@ export default function ProfilePage() {
             </p>
           ) : null}
 
-          <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white text-sm">
-            {[
-              ['Name', `${user.firstName} ${user.lastName}`],
-              ['Email', user.email],
-              ['Phone', user.phone],
-              ['Telegram', user.telegramUsername ? `@${user.telegramUsername.replace(/^@/, '')}` : '—'],
-              ['Address', user.address ?? '—'],
-              ['Member since', new Date(user.createdAt).toLocaleDateString()],
-            ].map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-4 px-4 py-2.5">
-                <dt className="text-slate-500">{label}</dt>
-                <dd className="text-right font-medium text-slate-900">{value}</dd>
-              </div>
-            ))}
-          </dl>
+          <ProfileDetailsCard />
         </section>
 
         {/* Documents */}
@@ -309,6 +300,12 @@ export default function ProfilePage() {
           <h2 className="text-base font-semibold text-slate-900">App &amp; notifications</h2>
           <DeviceSettingsCard />
           <NotificationPreferencesCard />
+        </section>
+
+        {/* Change email */}
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold text-slate-900">Change email</h2>
+          <ChangeEmailCard />
         </section>
 
         {/* Change password */}

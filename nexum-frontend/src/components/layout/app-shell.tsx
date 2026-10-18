@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Home, Building2, ClipboardList, Receipt, Bell, LogOut, User, MessageSquare } from 'lucide-react';
+import { Home, Building2, ClipboardList, Receipt, Bell, LogOut, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { UserAvatar } from '@/components/profile/user-avatar';
 import { useUnreadCount } from '@/lib/use-unread-count';
 import { useUnreadMessageCount } from '@/lib/use-unread-message-count';
 import { cn } from '@/lib/utils';
@@ -47,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ) : null}
           </Link>
           <Link href="/profile" aria-label="Profile">
-            <User className="size-5 text-slate-600" />
+            <UserAvatar size={28} />
           </Link>
           <button onClick={logout} className="flex items-center gap-1.5 text-sm text-slate-500" aria-label="Log out">
             <span className="hidden sm:inline">{user?.firstName}</span>
