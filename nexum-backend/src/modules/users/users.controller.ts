@@ -1,15 +1,22 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -21,6 +28,10 @@ import { UsersService } from './users.service';
 import { ReviewRegistrationDto } from './dto/review-registration.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangeEmailDto } from './dto/change-email.dto';
+
+import { multerOptions } from '../../common/config/multer.config';
 
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -45,6 +56,57 @@ export class UsersController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.usersService.findById(user.id);
+  }
+
+  @Patch('me')
+  @ApiOperation({
+    summary:
+      'Edit your own name, phone, address and Telegram username',
+  })
+  updateMe(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.usersService.updateProfile(user.id, dto);
+  }
+
+  @Patch('me/email')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Change your login email (requires your current password)',
+  })
+  changeMyEmail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangeEmailDto,
+  ) {
+    return this.usersService.changeEmail(user.id, dto);
+  }
+
+  @Get('me/avatar')
+  @ApiOperation({
+    summary: 'Get a short-lived signed URL for your profile photo',
+  })
+  getMyAvatar(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.getAvatarUrl(user.id);
+  }
+
+  @Post('me/avatar')
+  @UseInterceptors(FileInterceptor('file', multerOptions))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Upload or replace your profile photo (JPG or PNG, max 5MB)',
+  })
+  uploadMyAvatar(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.uploadAvatar(user.id, file);
+  }
+
+  @Delete('me/avatar')
+  @ApiOperation({ summary: 'Remove your profile photo' })
+  removeMyAvatar(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.removeAvatar(user.id);
   }
 
   @Get()

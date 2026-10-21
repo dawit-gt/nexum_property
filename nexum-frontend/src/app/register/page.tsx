@@ -1,19 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AuthShell } from '@/components/layout/auth-shell';
+import { RegistrationDocuments } from '@/components/auth/registration-documents';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/lib/auth-context';
 import { apiPost, getApiErrorMessage } from '@/lib/api-client';
 import { registerSchema, type RegisterFormValues } from '@/lib/validations/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { user, isLoading, login } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -22,8 +25,16 @@ export default function RegisterPage() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({ resolver: zodResolver(registerSchema) });
 
+  // Someone who is already approved (or an admin) has no reason to be here.
+  useEffect(() => {
+    if (isLoading || !user) return;
+    if (user.role === 'ADMIN') router.replace('/admin/dashboard');
+    else if (user.registrationStatus === 'APPROVED') router.replace('/dashboard');
+  }, [isLoading, user, router]);
+
   const onSubmit = async (values: RegisterFormValues) => {
     setServerError(null);
+
     try {
       await apiPost('/auth/register', {
         firstName: values.firstName,
@@ -33,16 +44,45 @@ export default function RegisterPage() {
         password: values.password,
         telegramUsername: values.telegramUsername || undefined,
       });
-      router.push('/login?registered=true');
     } catch (err) {
       setServerError(getApiErrorMessage(err));
+      return;
+    }
+
+    // Sign in right away so the documents can be uploaded in the next step.
+    try {
+      await login(values.email, values.password);
+    } catch {
+      router.push('/login?registered=true');
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center px-4">
+        <p className="text-sm text-slate-500">Loading...</p>
+      </div>
+    );
+  }
+
+  // Step 2: the account exists and the person is signed in.
+  if (user && user.role !== 'ADMIN' && user.registrationStatus !== 'APPROVED') {
+    return (
+      <AuthShell
+        title="Upload your documents"
+        subtitle={`Almost done, ${user.firstName}. Add your documents so an admin can approve your account`}
+        footer={null}
+      >
+        <RegistrationDocuments />
+      </AuthShell>
+    );
+  }
+
+  // Step 1: account details.
   return (
     <AuthShell
       title="Create your account"
-      subtitle="An admin will review your registration before you can use tenant features"
+      subtitle="Next you will upload your documents, then an admin reviews your registration"
       footer={
         <>
           Already have an account?{' '}
@@ -98,7 +138,7 @@ export default function RegisterPage() {
         {serverError ? <p className="text-sm text-red-600">{serverError}</p> : null}
 
         <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating account...' : 'Create account'}
+          {isSubmitting ? 'Creating account...' : 'Continue'}
         </Button>
       </form>
     </AuthShell>

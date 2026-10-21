@@ -1,11 +1,14 @@
 import {
   Injectable,
   BadRequestException,
+  ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import * as argon2 from 'argon2';
 
 import {
   AuditAction,
+  DocumentStatus,
   NotificationChannel,
   NotificationType,
   RegistrationStatus,
@@ -15,6 +18,12 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import { SupabaseStorageService } from '../../common/services/supabase-storage.service';
+import { STORAGE_BUCKETS } from '../../common/constants/storage.constants';
+import { assertValidUpload } from '../../common/utils/file-validation.util';
+
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangeEmailDto } from './dto/change-email.dto';
 
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { paginate } from '../../common/utils/paginate.util';
@@ -41,7 +50,233 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly storage: SupabaseStorageService,
   ) {}
+
+  // ---------- Own profile ----------
+
+  /**
+   * Lets a user edit their own contact details. Role, status, registration
+   * status and email are deliberately not editable here. An empty string
+   * clears the optional fields (address, Telegram username).
+   */
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: SAFE_USER_SELECT,
+    });
+
+    if (!current) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (dto.phone && dto.phone !== current.phone) {
+      const taken = await this.prisma.user.findFirst({
+        where: { phone: dto.phone, NOT: { id: userId } },
+        select: { id: true },
+      });
+
+      if (taken) {
+        throw new ConflictException('This phone number is already in use');
+      }
+    }
+
+    const clean = (value: string | undefined) =>
+      value === undefined ? undefined : value.trim() || null;
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName?.trim(),
+        lastName: dto.lastName?.trim(),
+        phone: dto.phone,
+        address: clean(dto.address),
+        telegramUsername:
+          dto.telegramUsername === undefined
+            ? undefined
+            : dto.telegramUsername.trim().replace(/^@/, '') || null,
+      },
+      select: SAFE_USER_SELECT,
+    });
+
+    await this.audit.log({
+      actorId: userId,
+      action: AuditAction.UPDATE,
+      entityType: 'User',
+      entityId: userId,
+      oldValue: {
+        firstName: current.firstName,
+        lastName: current.lastName,
+        phone: current.phone,
+        address: current.address,
+        telegramUsername: current.telegramUsername,
+      },
+      newValue: {
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        phone: updated.phone,
+        address: updated.address,
+        telegramUsername: updated.telegramUsername,
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Email is also the login, so it needs the current password. A wrong
+   * password is a 400 (not 401) on purpose: the web app treats a 401 as an
+   * expired session and would try to refresh or sign the user out.
+   */
+  async changeEmail(userId: string, dto: ChangeEmailDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, passwordHash: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const passwordOk = await argon2.verify(
+      user.passwordHash,
+      dto.currentPassword,
+    );
+
+    if (!passwordOk) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const newEmail = dto.newEmail.trim();
+
+    if (newEmail === user.email) {
+      throw new BadRequestException(
+        'That is already your email address',
+      );
+    }
+
+    const taken = await this.prisma.user.findUnique({
+      where: { email: newEmail },
+      select: { id: true },
+    });
+
+    if (taken) {
+      throw new ConflictException('This email is already in use');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email: newEmail },
+      select: SAFE_USER_SELECT,
+    });
+
+    await this.audit.log({
+      actorId: userId,
+      action: AuditAction.UPDATE,
+      entityType: 'User',
+      entityId: userId,
+      oldValue: { email: user.email },
+      newValue: { email: newEmail },
+    });
+
+    return updated;
+  }
+
+  // ---------- Profile photo ----------
+  // Photos live in the private documents bucket under avatars/<userId>/ and
+  // are only ever served through a short-lived signed URL.
+
+  async uploadAvatar(userId: string, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('A photo file is required');
+    }
+
+    assertValidUpload(file);
+
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException(
+        'Profile photos must be JPG or PNG images',
+      );
+    }
+
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    const path = this.storage.buildSecurePath(
+      `avatars/${userId}`,
+      file.originalname,
+    );
+
+    await this.storage.upload(
+      STORAGE_BUCKETS.PROPERTY_DOCUMENTS,
+      path,
+      file.buffer,
+      file.mimetype,
+    );
+
+    try {
+      const updated = await this.prisma.user.update({
+        where: { id: userId },
+        data: { avatarUrl: path },
+        select: SAFE_USER_SELECT,
+      });
+
+      if (current?.avatarUrl) {
+        await this.storage
+          .delete(STORAGE_BUCKETS.PROPERTY_DOCUMENTS, current.avatarUrl)
+          .catch(() => undefined);
+      }
+
+      return updated;
+    } catch (error) {
+      await this.storage
+        .delete(STORAGE_BUCKETS.PROPERTY_DOCUMENTS, path)
+        .catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async removeAvatar(userId: string) {
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: null },
+      select: SAFE_USER_SELECT,
+    });
+
+    if (current?.avatarUrl) {
+      await this.storage
+        .delete(STORAGE_BUCKETS.PROPERTY_DOCUMENTS, current.avatarUrl)
+        .catch(() => undefined);
+    }
+
+    return updated;
+  }
+
+  async getAvatarUrl(userId: string): Promise<{ url: string | null }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    if (!user?.avatarUrl) {
+      return { url: null };
+    }
+
+    const url = await this.storage.getSignedUrl(
+      STORAGE_BUCKETS.PROPERTY_DOCUMENTS,
+      user.avatarUrl,
+      60 * 60,
+    );
+
+    return { url };
+  }
 
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({
@@ -289,6 +524,20 @@ export class UsersService {
       throw new BadRequestException(
         'User is already approved',
       );
+    }
+
+    // A registration is reviewed on the strength of its documents, so
+    // approval needs at least one that has not been rejected.
+    if (status === RegistrationStatus.APPROVED) {
+      const usableDocuments = await this.prisma.document.count({
+        where: { userId, status: { not: DocumentStatus.REJECTED } },
+      });
+
+      if (usableDocuments === 0) {
+        throw new BadRequestException(
+          'This tenant has not uploaded any documents yet. Ask them to upload their documents before approving.',
+        );
+      }
     }
 
     const updated = await this.prisma.user.update({
