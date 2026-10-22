@@ -13,6 +13,10 @@ import {
   NotificationType,
 } from '@prisma/client';
 
+import { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
+import { paginate } from '../../common/utils/paginate.util';
+import { buildDateRange } from '../../common/utils/date-range.util';
+
 import { PrismaService } from '../../database/prisma.service';
 
 import { SupabaseStorageService } from '../../common/services/supabase-storage.service';
@@ -190,26 +194,66 @@ export class DocumentsService {
     });
   }
 
-  async listForReview(status?: DocumentStatus) {
-    return this.prisma.document.findMany({
-      where: {
-        status: status ?? DocumentStatus.PENDING,
-      },
-      select: {
-        ...DOCUMENT_SELECT,
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+  async listForReview(query: ListDocumentsQueryDto) {
+    const { page = 1, limit = 20, search, status, dateFrom, dateTo } = query;
+
+    const effectiveStatus =
+      status === 'ALL' ? undefined : (status ?? DocumentStatus.PENDING);
+    const createdAt = buildDateRange(dateFrom, dateTo);
+
+    const where = {
+      ...(effectiveStatus ? { status: effectiveStatus } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: 'insensitive' as const } },
+              {
+                user: {
+                  firstName: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  lastName: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  email: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.document.findMany({
+        where,
+        select: {
+          ...DOCUMENT_SELECT,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'asc',
-      },
-    });
+        // The review queue is worked oldest-first; history is newest-first.
+        orderBy: {
+          createdAt:
+            effectiveStatus === DocumentStatus.PENDING ? 'asc' : 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.document.count({ where }),
+    ]);
+
+    return paginate(data, total, page, limit);
   }
 
   async findOneWithAccessCheck(

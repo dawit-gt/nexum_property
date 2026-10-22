@@ -1,56 +1,55 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { RejectDialog } from '@/components/admin/reject-dialog';
+import { ListFooter, ListToolbar } from '@/components/admin/list-toolbar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { listAllLeases, terminateLease } from '@/lib/api/admin-leases';
-import { getApiErrorMessage } from '@/lib/api-client';
-import { toneForStatus } from '@/lib/status-badge';
+import { listLeases, terminateLease, type LeaseListParams } from '@/lib/api/admin-leases';
 import { formatDate } from '@/lib/lease-utils';
-import { cn } from '@/lib/utils';
+import { toneForStatus } from '@/lib/status-badge';
+import { useDebouncedValue, usePaginatedList } from '@/lib/use-paginated-list';
 import type { AdminLease, LeaseStatus } from '@/types/lease';
 
-type Filter = LeaseStatus | 'ALL';
-const FILTERS: Filter[] = ['ACTIVE', 'EXPIRED', 'TERMINATED', 'ALL'];
+type StatusFilter = LeaseStatus | 'ALL';
+
+const STATUS_OPTIONS = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'EXPIRED', label: 'Expired' },
+  { value: 'TERMINATED', label: 'Terminated' },
+  { value: 'ALL', label: 'All' },
+];
 
 export default function AdminLeasesPage() {
   const { user, isLoading: guardLoading } = useAdminGuard();
 
-  const [filter, setFilter] = useState<Filter>('ACTIVE');
-  const [leases, setLeases] = useState<AdminLease[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<StatusFilter>('ACTIVE');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const debouncedSearch = useDebouncedValue(search);
+
+  const list = usePaginatedList<AdminLease, LeaseListParams>(
+    listLeases,
+    {
+      status,
+      search: debouncedSearch.trim() || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    },
+    { enabled: Boolean(user) },
+  );
+
   const [terminateTarget, setTerminateTarget] = useState<AdminLease | null>(null);
-
-  const load = useCallback(async (f: Filter) => {
-    setError(null);
-    try {
-      setLeases(await listAllLeases(f === 'ALL' ? undefined : f));
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) load(filter);
-  }, [user, filter, load]);
-
-  const changeFilter = (f: Filter) => {
-    setIsLoading(true);
-    setFilter(f);
-  };
 
   const handleTerminate = async (reason: string) => {
     if (!terminateTarget) return;
     await terminateLease(terminateTarget.id, reason);
     setTerminateTarget(null);
-    await load(filter);
+    await list.reload();
   };
 
   if (guardLoading) return null;
@@ -59,34 +58,31 @@ export default function AdminLeasesPage() {
     <AdminShell>
       <h1 className="text-lg font-semibold text-slate-900">Leases</h1>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => changeFilter(f)}
-            className={cn(
-              'rounded-full border px-3 py-1 text-sm',
-              filter === f ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600',
-            )}
-          >
-            {f === 'ALL' ? 'All' : f.charAt(0) + f.slice(1).toLowerCase()}
-          </button>
-        ))}
-      </div>
+      <ListToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by lease #, room, tenant name or email..."
+        statusOptions={STATUS_OPTIONS}
+        status={status}
+        onStatusChange={(v) => setStatus(v as StatusFilter)}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={setDateFrom}
+        onDateToChange={setDateTo}
+      />
 
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {list.error ? <p className="mt-3 text-sm text-red-600">{list.error}</p> : null}
 
       <div className="mt-4 space-y-3">
-        {isLoading ? (
+        {list.isLoading ? (
           <>
             <Skeleton className="h-28 w-full rounded-xl" />
             <Skeleton className="h-28 w-full rounded-xl" />
           </>
-        ) : leases.length === 0 ? (
-          <p className="text-sm text-slate-500">No leases found.</p>
+        ) : list.items.length === 0 ? (
+          <p className="text-sm text-slate-500">No leases match these filters.</p>
         ) : (
-          leases.map((l) => (
+          list.items.map((l) => (
             <div key={l.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -119,6 +115,14 @@ export default function AdminLeasesPage() {
           ))
         )}
       </div>
+
+      <ListFooter
+        shown={list.items.length}
+        total={list.total}
+        hasMore={list.hasMore}
+        isLoadingMore={list.isLoadingMore}
+        onLoadMore={list.loadMore}
+      />
 
       <RejectDialog
         open={terminateTarget !== null}

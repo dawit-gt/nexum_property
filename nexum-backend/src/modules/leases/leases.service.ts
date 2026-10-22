@@ -12,6 +12,10 @@ import {
   NotificationType,
 } from '@prisma/client';
 
+import { ListLeasesQueryDto } from './dto/list-leases-query.dto';
+import { paginate } from '../../common/utils/paginate.util';
+import { buildDateRange } from '../../common/utils/date-range.util';
+
 import { PrismaService } from '../../database/prisma.service';
 import { RoomAvailabilityService } from '../rooms/room-availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -42,27 +46,72 @@ export class LeasesService {
     });
   }
 
-  async findAll(status?: LeaseStatus) {
-    return this.prisma.lease.findMany({
-      where: status ? { status } : undefined,
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+  async findAll(query: ListLeasesQueryDto) {
+    const { page = 1, limit = 20, search, status, dateFrom, dateTo } = query;
+
+    const createdAt = buildDateRange(dateFrom, dateTo);
+
+    const where = {
+      ...(status && status !== 'ALL' ? { status } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                leaseNumber: { contains: search, mode: 'insensitive' as const },
+              },
+              {
+                room: {
+                  roomNumber: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  firstName: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  lastName: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  email: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.lease.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          room: {
+            select: {
+              id: true,
+              roomNumber: true,
+            },
           },
         },
-        room: {
-          select: {
-            id: true,
-            roomNumber: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.lease.count({ where }),
+    ]);
+
+    return paginate(data, total, page, limit);
   }
 
   async findOne(

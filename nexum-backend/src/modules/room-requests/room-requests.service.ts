@@ -14,6 +14,10 @@ import {
   RoomStatus,
 } from '@prisma/client';
 
+import { ListRoomRequestsQueryDto } from './dto/list-room-requests-query.dto';
+import { paginate } from '../../common/utils/paginate.util';
+import { buildDateRange } from '../../common/utils/date-range.util';
+
 import { randomBytes } from 'crypto';
 
 import { PrismaService } from '../../database/prisma.service';
@@ -129,30 +133,77 @@ export class RoomRequestsService {
     });
   }
 
-  async findForReview(status?: RequestStatus) {
-    return this.prisma.roomRequest.findMany({
-      where: {
-        status: status ?? RequestStatus.PENDING,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
+  async findForReview(query: ListRoomRequestsQueryDto) {
+    const { page = 1, limit = 20, search, status, dateFrom, dateTo } = query;
+
+    const effectiveStatus =
+      status === 'ALL' ? undefined : (status ?? RequestStatus.PENDING);
+    const createdAt = buildDateRange(dateFrom, dateTo);
+
+    const where = {
+      ...(effectiveStatus ? { status: effectiveStatus } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(search
+        ? {
+            OR: [
+              { note: { contains: search, mode: 'insensitive' as const } },
+              {
+                room: {
+                  roomNumber: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  firstName: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  lastName: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+              {
+                user: {
+                  email: { contains: search, mode: 'insensitive' as const },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.roomRequest.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          room: {
+            select: {
+              id: true,
+              roomNumber: true,
+              monthlyRent: true,
+            },
           },
         },
-        room: {
-          select: {
-            id: true,
-            roomNumber: true,
-            monthlyRent: true,
-          },
+        // The review queue is worked oldest-first; history is newest-first.
+        orderBy: {
+          createdAt:
+            effectiveStatus === RequestStatus.PENDING ? 'asc' : 'desc',
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.roomRequest.count({ where }),
+    ]);
+
+    return paginate(data, total, page, limit);
   }
 
   async findOne(

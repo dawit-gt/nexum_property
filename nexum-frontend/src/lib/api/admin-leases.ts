@@ -1,8 +1,12 @@
 import { apiClient, apiGet, apiPatch } from '../api-client';
 import type { AdminLease, LeaseStatus } from '@/types/lease';
+import type { PaginatedResult } from '@/types/api';
+import type { ListParams } from '@/types/list';
 
-export function listAllLeases(status?: LeaseStatus) {
-  return apiGet<AdminLease[]>('/leases', status ? { status } : undefined);
+export type LeaseListParams = ListParams<LeaseStatus>;
+
+export function listLeases(params: LeaseListParams) {
+  return apiGet<PaginatedResult<AdminLease>>('/leases', params);
 }
 
 export function terminateLease(id: string, terminationReason: string) {

@@ -12,15 +12,15 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 
-import { LeaseStatus, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 import { LeasesService } from './leases.service';
 
 import { TerminateLeaseDto } from './dto/terminate-lease.dto';
+import { ListLeasesQueryDto } from './dto/list-leases-query.dto';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
@@ -43,14 +43,12 @@ export class LeasesController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiQuery({
-    name: 'status',
-    enum: LeaseStatus,
-    required: false,
+  @ApiOperation({
+    summary:
+      '[ADMIN] List leases — paginated, searchable, filterable by status and date range',
   })
-  @ApiOperation({ summary: '[ADMIN] List all leases' })
-  findAll(@Query('status') status?: LeaseStatus) {
-    return this.leasesService.findAll(status);
+  findAll(@Query() query: ListLeasesQueryDto) {
+    return this.leasesService.findAll(query);
   }
 
   @Get(':id')

@@ -12,16 +12,16 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 
-import { RequestStatus, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 import { RoomRequestsService } from './room-requests.service';
 
 import { CreateRoomRequestDto } from './dto/create-room-request.dto';
 import { ReviewRoomRequestDto } from './dto/review-room-request.dto';
+import { ListRoomRequestsQueryDto } from './dto/list-room-requests-query.dto';
 
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
@@ -55,16 +55,12 @@ export class RoomRequestsController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiQuery({
-    name: 'status',
-    enum: RequestStatus,
-    required: false,
-  })
   @ApiOperation({
-    summary: '[ADMIN] List requests for review (defaults to PENDING)',
+    summary:
+      '[ADMIN] List requests — paginated, searchable, filterable by status and date range (defaults to PENDING)',
   })
-  findForReview(@Query('status') status?: RequestStatus) {
-    return this.roomRequestsService.findForReview(status);
+  findForReview(@Query() query: ListRoomRequestsQueryDto) {
+    return this.roomRequestsService.findForReview(query);
   }
 
   @Get(':id')

@@ -16,13 +16,13 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { DocumentStatus, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { DocumentsService } from './documents.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ReviewDocumentDto } from './dto/review-document.dto';
+import { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
 import { multerOptions } from '../../common/config/multer.config';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
@@ -82,10 +82,12 @@ export class DocumentsController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiQuery({ name: 'status', enum: DocumentStatus, required: false })
-  @ApiOperation({ summary: '[ADMIN] List documents for review (defaults to PENDING)' })
-  listForReview(@Query('status') status?: DocumentStatus) {
-    return this.documentsService.listForReview(status);
+  @ApiOperation({
+    summary:
+      '[ADMIN] List documents — paginated, searchable, filterable by status and date range (defaults to PENDING)',
+  })
+  listForReview(@Query() query: ListDocumentsQueryDto) {
+    return this.documentsService.listForReview(query);
   }
 
   @Get(':id')
