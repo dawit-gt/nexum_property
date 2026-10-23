@@ -1,13 +1,9 @@
 import { apiGet, apiPatch } from '../api-client';
 import type { PaginatedResult } from '@/types/api';
 import type { AdminMaintenanceRequest, MaintenanceStatus, MaintenanceWithSignedUrl } from '@/types/maintenance';
+import type { ListParams } from '@/types/list';
 
-export type ListMaintenanceParams = {
-  page?: number;
-  limit?: number;
-  search?: string;
-  status?: MaintenanceStatus;
-};
+export type ListMaintenanceParams = ListParams<MaintenanceStatus>;
 
 export function listMaintenanceForReview(params: ListMaintenanceParams) {
   return apiGet<PaginatedResult<AdminMaintenanceRequest>>('/maintenance', params);

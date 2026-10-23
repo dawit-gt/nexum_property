@@ -8,7 +8,8 @@ import { assertValidUpload } from '../../common/utils/file-validation.util';
 import { RoomAvailabilityService } from '../rooms/room-availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateMaintenanceRequestDto } from './dto/create-maintenance-request.dto';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { ListMaintenanceQueryDto } from './dto/list-maintenance-query.dto';
+import { buildDateRange } from '../../common/utils/date-range.util';
 import { paginate } from '../../common/utils/paginate.util';
 
 type UploadedFile = Express.Multer.File;
@@ -79,12 +80,14 @@ export class MaintenanceService {
     });
   }
 
-  async findForReview(query: PaginationQueryDto & { status?: MaintenanceStatus }) {
-    const { page = 1, limit = 20, search, status } = query;
+  async findForReview(query: ListMaintenanceQueryDto) {
+    const { page = 1, limit = 20, search, status, dateFrom, dateTo } = query;
     const skip = (page - 1) * limit;
+    const createdAt = buildDateRange(dateFrom, dateTo);
 
     const where = {
-      ...(status ? { status } : {}),
+      ...(status && status !== 'ALL' ? { status } : {}),
+      ...(createdAt ? { createdAt } : {}),
       ...(search
         ? {
             OR: [

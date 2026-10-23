@@ -1,37 +1,77 @@
 'use client';
 
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
-type StatusOption = {
+export interface StatusOption {
   value: string;
   label: string;
-};
+}
 
-type ListToolbarProps = {
-  search: string;
-  onSearchChange: (value: string) => void;
-  searchPlaceholder?: string;
-  statusOptions: StatusOption[];
-  status: string;
-  onStatusChange: (value: string) => void;
+interface DateRangeFieldsProps {
   dateFrom: string;
   dateTo: string;
   onDateFromChange: (value: string) => void;
   onDateToChange: (value: string) => void;
-};
+}
 
+/** From / To date inputs with a Clear button. */
+export function DateRangeFields({ dateFrom, dateTo, onDateFromChange, onDateToChange }: DateRangeFieldsProps) {
+  const hasDates = dateFrom !== '' || dateTo !== '';
+
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <label className="space-y-1 text-xs text-slate-500">
+        From
+        <Input
+          type="date"
+          value={dateFrom}
+          max={dateTo || undefined}
+          onChange={(e) => onDateFromChange(e.target.value)}
+        />
+      </label>
+      <label className="space-y-1 text-xs text-slate-500">
+        To
+        <Input
+          type="date"
+          value={dateTo}
+          min={dateFrom || undefined}
+          onChange={(e) => onDateToChange(e.target.value)}
+        />
+      </label>
+      {hasDates ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            onDateFromChange('');
+            onDateToChange('');
+          }}
+        >
+          Clear dates
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+interface ListToolbarProps extends DateRangeFieldsProps {
+  /** Leave out both search props for lists that have nothing to search. */
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
+  statusOptions?: StatusOption[];
+  status?: string;
+  onStatusChange?: (value: string) => void;
+}
+
+/** Search box, status pills and a date range, shared by the admin lists. */
 export function ListToolbar({
   search,
   onSearchChange,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder,
   statusOptions,
   status,
   onStatusChange,
@@ -41,82 +81,65 @@ export function ListToolbar({
   onDateToChange,
 }: ListToolbarProps) {
   return (
-    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-      <Input
-        value={search}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder={searchPlaceholder}
-        className="sm:max-w-xs"
-      />
+    <div className="mt-4 space-y-3">
+      {onSearchChange ? (
+        <Input
+          type="search"
+          placeholder={searchPlaceholder}
+          value={search ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      ) : null}
 
-      <Select
-        value={status}
-        onValueChange={(value) => {
-          if (value !== null) onStatusChange(value);
-        }}
-      >
-        <SelectTrigger className="w-[140px]">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
+      {statusOptions && onStatusChange ? (
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
           {statusOptions.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onStatusChange(opt.value)}
+              className={cn(
+                'whitespace-nowrap rounded-full border px-3 py-1 text-sm',
+                status === opt.value
+                  ? 'border-slate-900 bg-slate-900 text-white'
+                  : 'border-slate-200 bg-white text-slate-600',
+              )}
+            >
               {opt.label}
-            </SelectItem>
+            </button>
           ))}
-        </SelectContent>
-      </Select>
+        </div>
+      ) : null}
 
-      <div className="flex items-center gap-2">
-        <Input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => onDateFromChange(e.target.value)}
-          className="w-[140px]"
-          aria-label="From date"
-        />
-        <span className="text-sm text-slate-400">–</span>
-        <Input
-          type="date"
-          value={dateTo}
-          onChange={(e) => onDateToChange(e.target.value)}
-          className="w-[140px]"
-          aria-label="To date"
-        />
-      </div>
+      <DateRangeFields
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFromChange={onDateFromChange}
+        onDateToChange={onDateToChange}
+      />
     </div>
   );
 }
 
-type ListFooterProps = {
+interface ListFooterProps {
   shown: number;
   total: number;
   hasMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
-};
+}
 
-export function ListFooter({
-  shown,
-  total,
-  hasMore,
-  isLoadingMore,
-  onLoadMore,
-}: ListFooterProps) {
+/** "Showing 10 of 42" plus a Load more button. */
+export function ListFooter({ shown, total, hasMore, isLoadingMore, onLoadMore }: ListFooterProps) {
   if (total === 0) return null;
 
   return (
-    <div className="mt-6 flex flex-col items-center gap-3">
-      <p className="text-sm text-slate-500">
+    <div className="mt-4 space-y-2 text-center">
+      <p className="text-xs text-slate-400">
         Showing {shown} of {total}
       </p>
       {hasMore ? (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={isLoadingMore}
-          onClick={onLoadMore}
-        >
+        <Button type="button" variant="outline" className="w-full" disabled={isLoadingMore} onClick={onLoadMore}>
           {isLoadingMore ? 'Loading...' : 'Load more'}
         </Button>
       ) : null}

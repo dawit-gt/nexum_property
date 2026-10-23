@@ -11,12 +11,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { MaintenanceStatus, UserRole } from '@prisma/client';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { MaintenanceService } from './maintenance.service';
 import { CreateMaintenanceRequestDto } from './dto/create-maintenance-request.dto';
 import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { ListMaintenanceQueryDto } from './dto/list-maintenance-query.dto';
 import { multerOptions } from '../../common/config/multer.config';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
@@ -61,9 +61,8 @@ export class MaintenanceController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiQuery({ name: 'status', enum: MaintenanceStatus, required: false })
-  @ApiOperation({ summary: '[ADMIN] List maintenance requests — paginated, searchable by ticket number/title/room' })
-  findForReview(@Query() query: PaginationQueryDto & { status?: MaintenanceStatus }) {
+  @ApiOperation({ summary: '[ADMIN] List maintenance requests — paginated, searchable, filterable by status and date range' })
+  findForReview(@Query() query: ListMaintenanceQueryDto) {
     return this.maintenanceService.findForReview(query);
   }
 

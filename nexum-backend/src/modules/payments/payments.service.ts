@@ -32,6 +32,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 
 import { paginate } from '../../common/utils/paginate.util';
+import { buildDateRange } from '../../common/utils/date-range.util';
 
 type UploadedFile = Express.Multer.File;
 
@@ -208,14 +209,21 @@ export class PaymentsService {
       limit = 20,
       search,
       status,
+      dateFrom,
+      dateTo,
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = query;
 
     const skip = (page - 1) * limit;
 
+    const effectiveStatus =
+      status === 'ALL' ? undefined : (status ?? PaymentStatus.PENDING);
+    const submittedBetween = buildDateRange(dateFrom, dateTo);
+
     const where = {
-      status: status ?? PaymentStatus.PENDING,
+      ...(effectiveStatus ? { status: effectiveStatus } : {}),
+      ...(submittedBetween ? { createdAt: submittedBetween } : {}),
       ...(search
         ? {
             OR: [

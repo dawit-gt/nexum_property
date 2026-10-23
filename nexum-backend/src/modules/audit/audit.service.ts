@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
+import { buildDateRange } from '../../common/utils/date-range.util';
 
 export interface AuditLogParams {
   actorId?: string;
@@ -45,10 +47,16 @@ export class AuditService {
     }
   }
 
-  async findAll(query: { page?: number; limit?: number; entityType?: string; entityId?: string; action?: AuditAction }) {
-    const { page = 1, limit = 50, entityType, entityId, action } = query;
+  async findAll(query: ListAuditLogsQueryDto) {
+    const { page = 1, limit = 50, entityType, entityId, action, dateFrom, dateTo } = query;
     const skip = (page - 1) * limit;
-    const where = { ...(entityType ? { entityType } : {}), ...(entityId ? { entityId } : {}), ...(action ? { action } : {}) };
+    const timestamp = buildDateRange(dateFrom, dateTo);
+    const where = {
+      ...(entityType ? { entityType } : {}),
+      ...(entityId ? { entityId } : {}),
+      ...(action ? { action } : {}),
+      ...(timestamp ? { timestamp } : {}),
+    };
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.auditLog.findMany({

@@ -1,15 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsIn, IsOptional } from 'class-validator';
+import { IsIn, IsOptional } from 'class-validator';
 import { PaymentStatus } from '@prisma/client';
-import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
+import { DateRangeQueryDto } from '../../../common/dto/date-range-query.dto';
 
 const SORTABLE_FIELDS = ['createdAt', 'paymentDate', 'amount'] as const;
+const STATUS_VALUES = [...Object.values(PaymentStatus), 'ALL'];
 
-export class ListPaymentsQueryDto extends PaginationQueryDto {
-  @ApiProperty({ required: false, enum: PaymentStatus })
+export class ListPaymentsQueryDto extends DateRangeQueryDto {
+  @ApiProperty({
+    required: false,
+    enum: STATUS_VALUES,
+    description: 'Defaults to PENDING. Use ALL for every status.',
+  })
   @IsOptional()
-  @IsEnum(PaymentStatus)
-  status?: PaymentStatus;
+  @IsIn(STATUS_VALUES)
+  status?: PaymentStatus | 'ALL';
 
   @ApiProperty({ required: false, enum: SORTABLE_FIELDS, default: 'createdAt' })
   @IsOptional()

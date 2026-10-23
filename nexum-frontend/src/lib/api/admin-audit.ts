@@ -7,6 +7,10 @@ export type ListAuditLogsParams = {
   limit?: number;
   entityType?: string;
   action?: AuditAction;
+  /** YYYY-MM-DD, inclusive. */
+  dateFrom?: string;
+  /** YYYY-MM-DD, inclusive. */
+  dateTo?: string;
 };
 
 export function listAuditLogs(params: ListAuditLogsParams) {
