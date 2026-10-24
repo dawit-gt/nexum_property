@@ -76,13 +76,8 @@ export default function AdminDashboardPage() {
     );
   }
 
-  // Prefer overview.thisMonth when present; fall back to the last chart bucket.
   const collectedThisMonth =
-    overview?.thisMonth?.totalAmount != null
-      ? overview.thisMonth.totalAmount
-      : income && income.length > 0
-        ? income[income.length - 1].total
-        : null;
+    income && income.length > 0 ? income[income.length - 1].total : null;
 
   return (
     <AdminShell>
