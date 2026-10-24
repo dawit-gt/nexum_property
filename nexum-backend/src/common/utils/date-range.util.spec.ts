@@ -35,3 +35,4 @@ describe('buildDateRange', () => {
     expect(buildDateRange('not-a-date', '2026-03-10')?.gte).toBeUndefined();
   });
 });
+
