@@ -25,8 +25,9 @@ const PENDING_ACTION_LINKS: { key: keyof DashboardOverview['pendingActions']; la
 
 const MONTH_CHOICES = [6, 12];
 
-function formatMoney(value: number) {
-  return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ETB`;
+function formatMoney(value: number | null | undefined) {
+  if (value == null || Number.isNaN(Number(value))) return '—';
+  return `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })} ETB`;
 }
 
 export default function AdminDashboardPage() {
@@ -75,7 +76,13 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const collectedThisMonth = income && income.length > 0 ? income[income.length - 1].total : null;
+  // Prefer overview.thisMonth when present; fall back to the last chart bucket.
+  const collectedThisMonth =
+    overview?.thisMonth?.totalAmount != null
+      ? overview.thisMonth.totalAmount
+      : income && income.length > 0
+        ? income[income.length - 1].total
+        : null;
 
   return (
     <AdminShell>
@@ -115,13 +122,15 @@ export default function AdminDashboardPage() {
           <div className="mt-2 grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm text-slate-500">Expected monthly rent</p>
-              <p className="mt-1 text-xl font-bold text-slate-900">{formatMoney(overview.expectedMonthlyRent)}</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">
+                {formatMoney(overview.expectedMonthlyRent)}
+              </p>
               <p className="mt-0.5 text-xs text-slate-400">From active leases</p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm text-slate-500">Collected this month</p>
               <p className="mt-1 text-xl font-bold text-slate-900">
-                {collectedThisMonth === null ? '—' : formatMoney(collectedThisMonth)}
+                {formatMoney(collectedThisMonth)}
               </p>
               <p className="mt-0.5 text-xs text-slate-400">Approved payments</p>
             </div>
