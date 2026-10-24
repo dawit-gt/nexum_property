@@ -15,7 +15,7 @@ export class DueDateSchedulerService {
    * once Phase 9 builds the admin dashboard, and a free external uptime
    * monitor (set up at deployment, Phase 12) keeps the host itself awake.
    */
-  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  @Cron(CronExpression.EVERY_DAY_AT_2AM, { timeZone: 'Africa/Addis_Ababa' })
   async handleDailyCheck() {
     this.logger.log('Running scheduled daily due-date check...');
     await this.dueDateService.runDailyCheck();

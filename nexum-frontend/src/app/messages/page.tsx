@@ -66,7 +66,10 @@ export default function TenantMessagesPage() {
   }, []);
 
   useEffect(() => {
-    if (user) loadSent();
+    if (!user) return;
+    queueMicrotask(() => {
+      void loadSent();
+    });
   }, [user, loadSent]);
 
   const handleSend = async (e: React.FormEvent) => {

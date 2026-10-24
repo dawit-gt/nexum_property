@@ -42,7 +42,9 @@ export function NotificationPreferencesCard() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   // While the tenant is in Telegram pressing Start, poll until the bot confirms.

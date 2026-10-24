@@ -44,7 +44,9 @@ export function InboxList() {
   }, []);
 
   useEffect(() => {
-    load(1);
+    queueMicrotask(() => {
+      void load(1);
+    });
   }, [load]);
 
   const handleToggle = (item: InboxItem) => {

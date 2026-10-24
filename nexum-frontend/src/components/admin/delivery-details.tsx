@@ -45,7 +45,9 @@ export function DeliveryDetails({ messageId, subject, body }: DeliveryDetailsPro
   }, [messageId]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   if (error) return <p className="mt-3 text-sm text-red-600">{error}</p>;
