@@ -5,6 +5,7 @@ import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { RejectDialog } from '@/components/admin/reject-dialog';
 import { ListFooter, ListToolbar } from '@/components/admin/list-toolbar';
+import { ExportButton } from '@/components/admin/export-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -70,6 +71,19 @@ export default function AdminLeasesPage() {
         onDateFromChange={setDateFrom}
         onDateToChange={setDateTo}
       />
+
+      <div className="mt-3 flex justify-end">
+        <ExportButton
+          path="/dashboard/leases/export"
+          filenameBase="leases"
+          params={{
+            status,
+            search: debouncedSearch.trim() || undefined,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+          }}
+        />
+      </div>
 
       {list.error ? <p className="mt-3 text-sm text-red-600">{list.error}</p> : null}
 

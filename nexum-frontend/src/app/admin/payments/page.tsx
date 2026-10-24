@@ -5,6 +5,7 @@ import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { RejectDialog } from '@/components/admin/reject-dialog';
 import { ListFooter, ListToolbar } from '@/components/admin/list-toolbar';
+import { ExportButton } from '@/components/admin/export-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -115,6 +116,19 @@ export default function AdminPaymentsPage() {
         onDateToChange={setDateTo}
       />
       <p className="mt-1 text-xs text-slate-400">Dates filter by when the payment was submitted.</p>
+
+      <div className="mt-3 flex justify-end">
+        <ExportButton
+          path="/dashboard/payments/export"
+          filenameBase="payments"
+          params={{
+            status,
+            search: debouncedSearch.trim() || undefined,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+          }}
+        />
+      </div>
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 

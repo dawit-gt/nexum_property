@@ -5,6 +5,7 @@ import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { MaintenanceStatusDialog } from '@/components/admin/maintenance-status-dialog';
 import { ListFooter, ListToolbar } from '@/components/admin/list-toolbar';
+import { ExportButton } from '@/components/admin/export-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -99,6 +100,19 @@ export default function AdminMaintenancePage() {
         onDateFromChange={setDateFrom}
         onDateToChange={setDateTo}
       />
+
+      <div className="mt-3 flex justify-end">
+        <ExportButton
+          path="/dashboard/maintenance/export"
+          filenameBase="maintenance"
+          params={{
+            status,
+            search: debouncedSearch.trim() || undefined,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+          }}
+        />
+      </div>
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 

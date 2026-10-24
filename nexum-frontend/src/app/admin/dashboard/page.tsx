@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
+import { IncomeChart } from '@/components/charts/income-chart';
+import { StatusDonut } from '@/components/charts/status-donut';
 import { AdminAlertPreferencesCard } from '@/components/pwa/admin-alert-preferences-card';
 import { DeviceSettingsCard } from '@/components/pwa/device-settings-card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getDashboardOverview } from '@/lib/api/dashboard';
-import { downloadPaymentsCsv } from '@/lib/api/admin-leases';
+import { getDashboardOverview, getMonthlyIncome } from '@/lib/api/dashboard';
 import { getApiErrorMessage } from '@/lib/api-client';
-import type { DashboardOverview } from '@/types/dashboard';
+import type { DashboardOverview, MonthlyIncomePoint } from '@/types/dashboard';
 import { cn } from '@/lib/utils';
 
 const PENDING_ACTION_LINKS: { key: keyof DashboardOverview['pendingActions']; label: string; href: string }[] = [
@@ -23,27 +23,22 @@ const PENDING_ACTION_LINKS: { key: keyof DashboardOverview['pendingActions']; la
   { key: 'unreadMessages', label: 'Unread messages', href: '/admin/messages' },
 ];
 
-function StatCard({ title, data }: { title: string; data: Record<string, number> }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{title}</p>
-      <dl className="mt-2 space-y-1.5">
-        {Object.entries(data).map(([status, count]) => (
-          <div key={status} className="flex items-center justify-between text-sm">
-            <dt className="text-slate-600">{status}</dt>
-            <dd className="font-semibold text-slate-900">{count}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
+const MONTH_CHOICES = [6, 12];
+
+function formatMoney(value: number) {
+  return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ETB`;
 }
 
 export default function AdminDashboardPage() {
   const { user, isLoading: guardLoading } = useAdminGuard();
+
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [months, setMonths] = useState(6);
+  const [income, setIncome] = useState<MonthlyIncomePoint[] | null>(null);
+  const [incomeError, setIncomeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -53,6 +48,25 @@ export default function AdminDashboardPage() {
       .finally(() => setIsLoading(false));
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    getMonthlyIncome(months)
+      .then((data) => {
+        if (cancelled) return;
+        setIncome(data);
+        setIncomeError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setIncomeError(getApiErrorMessage(err));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, months]);
+
   if (guardLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
@@ -61,18 +75,11 @@ export default function AdminDashboardPage() {
     );
   }
 
+  const collectedThisMonth = income && income.length > 0 ? income[income.length - 1].total : null;
+
   return (
     <AdminShell>
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => downloadPaymentsCsv().catch((err) => setError(getApiErrorMessage(err)))}
-        >
-          Export payments CSV
-        </Button>
-      </div>
+      <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
 
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
@@ -104,11 +111,60 @@ export default function AdminDashboardPage() {
             })}
           </div>
 
+          <h2 className="mt-6 text-sm font-semibold text-slate-700">Money</h2>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Expected monthly rent</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">{formatMoney(overview.expectedMonthlyRent)}</p>
+              <p className="mt-0.5 text-xs text-slate-400">From active leases</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Collected this month</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">
+                {collectedThisMonth === null ? '—' : formatMoney(collectedThisMonth)}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">Approved payments</p>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-slate-500">Income by month</p>
+              <div className="flex gap-1">
+                {MONTH_CHOICES.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMonths(m)}
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-xs',
+                      months === m
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-white text-slate-600',
+                    )}
+                  >
+                    {m} months
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {incomeError ? (
+              <p className="mt-3 text-sm text-red-600">{incomeError}</p>
+            ) : income ? (
+              <div className="mt-3">
+                <IncomeChart data={income} />
+              </div>
+            ) : (
+              <Skeleton className="mt-3 h-56 w-full rounded-lg" />
+            )}
+          </div>
+
           <h2 className="mt-6 text-sm font-semibold text-slate-700">Analytics</h2>
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatCard title="Room occupancy" data={overview.occupancy} />
-            <StatCard title="Payment status" data={overview.payments} />
-            <StatCard title="User status" data={overview.users} />
+            <StatusDonut title="Room occupancy" data={overview.occupancy} />
+            <StatusDonut title="Payment status" data={overview.payments} />
+            <StatusDonut title="User status" data={overview.users} />
           </div>
         </>
       )}
