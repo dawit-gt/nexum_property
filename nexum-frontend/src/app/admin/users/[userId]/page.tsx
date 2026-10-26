@@ -7,6 +7,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useAdminGuard } from '@/lib/use-admin-guard';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { RejectDialog } from '@/components/admin/reject-dialog';
+import { UserOverview } from '@/components/admin/user-overview';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -112,6 +113,9 @@ export default function AdminUserDetailPage() {
             <InfoRow label="Joined" value={new Date(person.createdAt).toLocaleDateString()} />
           </dl>
 
+          {/* Everything this person has: rooms, requests, documents, payments, tickets */}
+          {person.role !== 'ADMIN' ? <UserOverview userId={userId} /> : null}
+
           {/* Registration */}
           <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="font-medium text-slate-900">Registration</h2>
@@ -125,11 +129,11 @@ export default function AdminUserDetailPage() {
                 ) : null}
 
                 <p className="text-sm text-slate-500">
-                  Check this person&apos;s uploaded files in{' '}
+                  Look through the documents listed above, or review them in{' '}
                   <Link href="/admin/documents" className="underline">
                     Documents
-                  </Link>{' '}
-                  before deciding.
+                  </Link>
+                  , before deciding.
                   {person.registrationStatus === 'REJECTED'
                     ? ' They can upload corrected documents and be re-reviewed.'
                     : ''}

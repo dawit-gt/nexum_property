@@ -1,5 +1,6 @@
 import { apiGet, apiPatch } from '../api-client';
 import type { PaginatedResult, RegistrationStatus, SafeUser } from '@/types/api';
+import type { UserOverview } from '@/types/user-overview';
 
 export type ListUsersParams = {
   page?: number;
@@ -14,6 +15,11 @@ export function listUsers(params: ListUsersParams) {
 
 export function getUser(id: string) {
   return apiGet<SafeUser>(`/users/${id}`);
+}
+
+/** Rooms and leases, requests, documents, payments and maintenance for one person. */
+export function getUserOverview(id: string) {
+  return apiGet<UserOverview>(`/users/${id}/overview`);
 }
 
 export function reviewRegistration(id: string, status: 'APPROVED' | 'REJECTED', rejectionReason?: string) {
