@@ -3,6 +3,7 @@ import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
 import { buildDateRange } from '../../common/utils/date-range.util';
+import { diffFields } from './audit-diff.util';
 
 export interface AuditLogParams {
   actorId?: string;
@@ -45,6 +46,31 @@ export class AuditService {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to write audit log for ${params.action} on ${params.entityType}/${params.entityId}: ${message}`);
     }
+  }
+
+  /**
+   * Records an UPDATE only when something actually changed, storing just the
+   * fields that changed (old and new side by side).
+   */
+  async logChange(params: {
+    actorId?: string;
+    entityType: string;
+    entityId: string;
+    before: object;
+    after: object;
+  }): Promise<void> {
+    const changes = diffFields(params.before, params.after);
+
+    if (!changes) return;
+
+    await this.log({
+      actorId: params.actorId,
+      action: AuditAction.UPDATE,
+      entityType: params.entityType,
+      entityId: params.entityId,
+      oldValue: changes.oldValue,
+      newValue: changes.newValue,
+    });
   }
 
   async findAll(query: ListAuditLogsQueryDto) {

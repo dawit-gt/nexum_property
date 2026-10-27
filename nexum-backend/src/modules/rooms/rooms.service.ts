@@ -40,7 +40,7 @@ export class RoomsService {
     private readonly audit: AuditService,
   ) {}
 
-  async create(dto: CreateRoomDto) {
+  async create(dto: CreateRoomDto, adminId: string) {
     const floor = await this.prisma.floor.findUnique({
       where: { id: dto.floorId },
       include: {
@@ -81,7 +81,7 @@ export class RoomsService {
       );
     }
 
-    return this.prisma.room.create({
+    const created = await this.prisma.room.create({
       data: {
         floorId: dto.floorId,
         buildingId: floor.buildingId,
@@ -97,6 +97,21 @@ export class RoomsService {
         status: RoomStatus.AVAILABLE,
       },
     });
+
+    await this.audit.log({
+      actorId: adminId,
+      action: AuditAction.CREATE,
+      entityType: 'ROOM',
+      entityId: created.id,
+      newValue: {
+        roomNumber: created.roomNumber,
+        areaSqM: created.areaSqM,
+        pricePerSqM: created.pricePerSqM,
+        monthlyRent: created.monthlyRent,
+      },
+    });
+
+    return created;
   }
 
   /**
@@ -273,6 +288,21 @@ export class RoomsService {
         },
       });
     }
+
+    // Everything except rent, which is logged above as a price change.
+    const otherChanges = Object.fromEntries(
+      Object.entries(dto).filter(
+        ([key]) => key !== 'areaSqM' && key !== 'pricePerSqM',
+      ),
+    );
+
+    await this.audit.logChange({
+      actorId: adminId,
+      entityType: 'ROOM',
+      entityId: id,
+      before: room,
+      after: otherChanges,
+    });
 
     return updated;
   }

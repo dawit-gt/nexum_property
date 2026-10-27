@@ -1,7 +1,8 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { MaintenanceStatus, NotificationChannel, NotificationType, RoomStatus } from '@prisma/client';
+import { AuditAction, MaintenanceStatus, NotificationChannel, NotificationType, RoomStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { SupabaseStorageService } from '../../common/services/supabase-storage.service';
 import { STORAGE_BUCKETS, SIGNED_URL_EXPIRY_SECONDS } from '../../common/constants/storage.constants';
 import { assertValidUpload } from '../../common/utils/file-validation.util';
@@ -27,6 +28,7 @@ export class MaintenanceService {
     private readonly storage: SupabaseStorageService,
     private readonly roomAvailability: RoomAvailabilityService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   async create(userId: string, dto: CreateMaintenanceRequestDto, file?: UploadedFile) {
@@ -138,7 +140,13 @@ export class MaintenanceService {
     return { ...safe, signedUrl, signedUrlExpiresInSeconds: SIGNED_URL_EXPIRY_SECONDS };
   }
 
-  async updateStatus(id: string, status: MaintenanceStatus, adminNotes?: string, takeRoomOutOfService = false) {
+  async updateStatus(
+    id: string,
+    status: MaintenanceStatus,
+    adminNotes?: string,
+    takeRoomOutOfService = false,
+    adminId?: string,
+  ) {
     const request = await this.prisma.maintenanceRequest.findUnique({ where: { id } });
     if (!request) {
       throw new NotFoundException('Maintenance request not found');
@@ -154,6 +162,14 @@ export class MaintenanceService {
       const room = await this.prisma.room.findUnique({ where: { id: request.roomId } });
       if (room && room.status === RoomStatus.AVAILABLE) {
         await this.prisma.room.update({ where: { id: room.id }, data: { status: RoomStatus.MAINTENANCE } });
+        await this.audit.log({
+          actorId: adminId,
+          action: AuditAction.STATUS_CHANGE,
+          entityType: 'ROOM',
+          entityId: room.id,
+          oldValue: { status: room.status },
+          newValue: { status: RoomStatus.MAINTENANCE, reason: `Ticket ${request.ticketNumber}` },
+        });
       }
     }
 
@@ -166,6 +182,15 @@ export class MaintenanceService {
       },
     });
 
+    await this.audit.log({
+      actorId: adminId,
+      action: AuditAction.STATUS_CHANGE,
+      entityType: 'MAINTENANCE',
+      entityId: id,
+      oldValue: { status: request.status },
+      newValue: { status, adminNotes: adminNotes ?? null },
+    });
+
     // Bring the room back to AVAILABLE automatically once resolved, but
     // only if it was actually taken out of service for this ticket in the
     // first place — never touch a room that's OCCUPIED under an active lease.
@@ -173,6 +198,14 @@ export class MaintenanceService {
       const room = await this.prisma.room.findUnique({ where: { id: request.roomId } });
       if (room?.status === RoomStatus.MAINTENANCE) {
         await this.prisma.room.update({ where: { id: room.id }, data: { status: RoomStatus.AVAILABLE } });
+        await this.audit.log({
+          actorId: adminId,
+          action: AuditAction.STATUS_CHANGE,
+          entityType: 'ROOM',
+          entityId: room.id,
+          oldValue: { status: room.status },
+          newValue: { status: RoomStatus.AVAILABLE, reason: `Ticket ${request.ticketNumber} resolved` },
+        });
       }
     }
 

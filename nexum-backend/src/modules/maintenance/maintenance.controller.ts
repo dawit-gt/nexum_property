@@ -76,7 +76,17 @@ export class MaintenanceController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Update maintenance status' })
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateMaintenanceStatusDto) {
-    return this.maintenanceService.updateStatus(id, dto.status, dto.adminNotes, dto.takeRoomOutOfService);
+  updateStatus(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateMaintenanceStatusDto,
+  ) {
+    return this.maintenanceService.updateStatus(
+      id,
+      dto.status,
+      dto.adminNotes,
+      dto.takeRoomOutOfService,
+      admin.id,
+    );
   }
 }

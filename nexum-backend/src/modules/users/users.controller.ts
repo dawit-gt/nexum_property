@@ -134,6 +134,17 @@ export class UsersController {
     return this.usersService.findById(id);
   }
 
+  @Get(':id/overview')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary:
+      '[ADMIN] Everything about one person: rooms and leases, requests, documents, payments, maintenance',
+  })
+  getOverview(@Param('id') id: string) {
+    return this.usersService.getOverview(id);
+  }
+
   @Patch(':id/registration')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

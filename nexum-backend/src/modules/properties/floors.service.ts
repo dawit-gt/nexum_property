@@ -1,13 +1,18 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { CreateFloorDto } from './dto/create-floor.dto';
 import { UpdateFloorDto } from './dto/update-floor.dto';
 
 @Injectable()
 export class FloorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
-  async create(buildingId: string, dto: CreateFloorDto) {
+  async create(buildingId: string, dto: CreateFloorDto, adminId: string) {
     const building = await this.prisma.building.findUnique({ where: { id: buildingId } });
     if (!building) {
       throw new NotFoundException('Building not found');
@@ -20,7 +25,17 @@ export class FloorsService {
       throw new ConflictException(`Floor ${dto.floorNumber} already exists in this building`);
     }
 
-    return this.prisma.floor.create({ data: { ...dto, buildingId } });
+    const floor = await this.prisma.floor.create({ data: { ...dto, buildingId } });
+
+    await this.audit.log({
+      actorId: adminId,
+      action: AuditAction.CREATE,
+      entityType: 'FLOOR',
+      entityId: floor.id,
+      newValue: { floorNumber: floor.floorNumber, building: building.name },
+    });
+
+    return floor;
   }
 
   async findAllForBuilding(buildingId: string) {
@@ -35,13 +50,34 @@ export class FloorsService {
     return floor;
   }
 
-  async update(id: string, dto: UpdateFloorDto) {
-    await this.findOne(id);
-    return this.prisma.floor.update({ where: { id }, data: dto });
+  async update(id: string, dto: UpdateFloorDto, adminId: string) {
+    const before = await this.findOne(id);
+    const updated = await this.prisma.floor.update({ where: { id }, data: dto });
+
+    await this.audit.logChange({
+      actorId: adminId,
+      entityType: 'FLOOR',
+      entityId: id,
+      before,
+      after: { ...dto },
+    });
+
+    return updated;
   }
 
-  async softDelete(id: string) {
-    await this.findOne(id);
-    return this.prisma.floor.update({ where: { id }, data: { isActive: false } });
+  async softDelete(id: string, adminId: string) {
+    const floor = await this.findOne(id);
+    const updated = await this.prisma.floor.update({ where: { id }, data: { isActive: false } });
+
+    await this.audit.log({
+      actorId: adminId,
+      action: AuditAction.DELETE,
+      entityType: 'FLOOR',
+      entityId: id,
+      oldValue: { floorNumber: floor.floorNumber, isActive: floor.isActive },
+      newValue: { isActive: false },
+    });
+
+    return updated;
   }
 }

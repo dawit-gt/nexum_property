@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import {
+  AuditAction,
   LeaseStatus,
   MessageTargetType,
   NotificationChannel,
@@ -16,7 +17,7 @@ import {
 } from '@prisma/client';
 
 import { PrismaService } from '../../database/prisma.service';
-
+import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 import { SendMessageDto } from './dto/send-message.dto';
@@ -31,6 +32,7 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -85,7 +87,7 @@ export class MessagesService {
       );
     }
 
-    return this.createMessageWithRecipients(
+    const message = await this.createMessageWithRecipients(
       adminId,
       dto.subject,
       dto.body,
@@ -98,6 +100,21 @@ export class MessagesService {
       },
       { channels: dto.channels, actionBase: '/messages' },
     );
+
+    await this.audit.log({
+      actorId: adminId,
+      action: AuditAction.CREATE,
+      entityType: 'MESSAGE',
+      entityId: message.id,
+      newValue: {
+        subject: dto.subject,
+        sentTo: dto.targetType,
+        recipients: recipientIds.length,
+        channels: dto.channels?.length ? dto.channels.join(', ') : 'automatic',
+      },
+    });
+
+    return message;
   }
 
   private async resolveRecipients(

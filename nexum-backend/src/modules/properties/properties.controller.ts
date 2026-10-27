@@ -22,6 +22,8 @@ import { CreateBuildingDto } from './dto/create-building.dto';
 
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('properties')
 @ApiBearerAuth()
@@ -36,8 +38,8 @@ export class PropertiesController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Create a property' })
-  create(@Body() dto: CreatePropertyDto) {
-    return this.propertiesService.create(dto);
+  create(@CurrentUser() admin: AuthenticatedUser, @Body() dto: CreatePropertyDto) {
+    return this.propertiesService.create(dto, admin.id);
   }
 
   @Get()
@@ -56,16 +58,20 @@ export class PropertiesController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Update a property' })
-  update(@Param('id') id: string, @Body() dto: UpdatePropertyDto) {
-    return this.propertiesService.update(id, dto);
+  update(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdatePropertyDto,
+  ) {
+    return this.propertiesService.update(id, dto, admin.id);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Deactivate a property (soft delete)' })
-  remove(@Param('id') id: string) {
-    return this.propertiesService.softDelete(id);
+  remove(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.propertiesService.softDelete(id, admin.id);
   }
 
   @Post(':propertyId/buildings')
@@ -73,10 +79,11 @@ export class PropertiesController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Add a building to a property' })
   createBuilding(
+    @CurrentUser() admin: AuthenticatedUser,
     @Param('propertyId') propertyId: string,
     @Body() dto: CreateBuildingDto,
   ) {
-    return this.buildingsService.create(propertyId, dto);
+    return this.buildingsService.create(propertyId, dto, admin.id);
   }
 
   @Get(':propertyId/buildings')

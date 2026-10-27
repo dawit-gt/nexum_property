@@ -21,6 +21,8 @@ import { CreateFloorDto } from './dto/create-floor.dto';
 
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('buildings')
 @ApiBearerAuth()
@@ -41,16 +43,20 @@ export class BuildingsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Update a building' })
-  update(@Param('id') id: string, @Body() dto: UpdateBuildingDto) {
-    return this.buildingsService.update(id, dto);
+  update(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateBuildingDto,
+  ) {
+    return this.buildingsService.update(id, dto, admin.id);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Deactivate a building (soft delete)' })
-  remove(@Param('id') id: string) {
-    return this.buildingsService.softDelete(id);
+  remove(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.buildingsService.softDelete(id, admin.id);
   }
 
   @Post(':buildingId/floors')
@@ -58,10 +64,11 @@ export class BuildingsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Add a floor to a building' })
   createFloor(
+    @CurrentUser() admin: AuthenticatedUser,
     @Param('buildingId') buildingId: string,
     @Body() dto: CreateFloorDto,
   ) {
-    return this.floorsService.create(buildingId, dto);
+    return this.floorsService.create(buildingId, dto, admin.id);
   }
 
   @Get(':buildingId/floors')

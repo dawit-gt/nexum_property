@@ -9,9 +9,13 @@ import * as argon2 from 'argon2';
 import {
   AuditAction,
   DocumentStatus,
+  LeaseStatus,
+  MaintenanceStatus,
   NotificationChannel,
   NotificationType,
+  PaymentStatus,
   RegistrationStatus,
+  RequestStatus,
   UserStatus,
 } from '@prisma/client';
 
@@ -289,6 +293,187 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  /**
+   * Everything an admin needs to know about one person in one call: the rooms
+   * they occupy (their leases), their room requests, every document they have
+   * uploaded, their payments and their maintenance tickets.
+   */
+  async getOverview(userId: string) {
+    await this.findById(userId);
+
+    const roomLocation = {
+      select: {
+        id: true,
+        roomNumber: true,
+        floor: { select: { floorNumber: true } },
+        building: { select: { name: true, code: true } },
+        property: { select: { name: true } },
+      },
+    } as const;
+
+    const [
+      leases,
+      roomRequests,
+      documents,
+      payments,
+      approvedPayments,
+      paymentTotal,
+      pendingPayments,
+      maintenance,
+      maintenanceTotal,
+      openMaintenance,
+    ] = await this.prisma.$transaction([
+      this.prisma.lease.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          leaseNumber: true,
+          status: true,
+          startDate: true,
+          endDate: true,
+          monthlyRent: true,
+          paymentSchedule: true,
+          terminationDate: true,
+          terminationReason: true,
+          createdAt: true,
+          room: roomLocation,
+        },
+      }),
+      this.prisma.roomRequest.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          status: true,
+          desiredStartDate: true,
+          note: true,
+          rejectionReason: true,
+          createdAt: true,
+          room: { select: { id: true, roomNumber: true, monthlyRent: true } },
+        },
+      }),
+      this.prisma.document.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          documentType: true,
+          title: true,
+          fileType: true,
+          fileSizeBytes: true,
+          version: true,
+          previousVersionId: true,
+          status: true,
+          rejectionReason: true,
+          reviewedAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.payment.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          paymentNumber: true,
+          amount: true,
+          currency: true,
+          status: true,
+          monthsCovered: true,
+          periodStartDate: true,
+          periodEndDate: true,
+          paymentDate: true,
+          rejectionReason: true,
+          createdAt: true,
+          room: { select: { roomNumber: true } },
+        },
+      }),
+      this.prisma.payment.findMany({
+        where: { userId, status: PaymentStatus.APPROVED },
+        select: { leaseId: true, periodEndDate: true },
+      }),
+      this.prisma.payment.count({ where: { userId } }),
+      this.prisma.payment.count({
+        where: { userId, status: PaymentStatus.PENDING },
+      }),
+      this.prisma.maintenanceRequest.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          ticketNumber: true,
+          issueTitle: true,
+          status: true,
+          createdAt: true,
+          resolvedAt: true,
+          room: { select: { roomNumber: true } },
+        },
+      }),
+      this.prisma.maintenanceRequest.count({ where: { userId } }),
+      this.prisma.maintenanceRequest.count({
+        where: {
+          userId,
+          status: {
+            in: [MaintenanceStatus.PENDING, MaintenanceStatus.IN_PROGRESS],
+          },
+        },
+      }),
+    ]);
+
+    // A lease is paid through the end of its last approved payment period.
+    const paidThrough = new Map<string, Date>();
+    for (const payment of approvedPayments) {
+      const current = paidThrough.get(payment.leaseId);
+      if (!current || payment.periodEndDate > current) {
+        paidThrough.set(payment.leaseId, payment.periodEndDate);
+      }
+    }
+
+    // Only the newest version of each document counts as "current".
+    const replaced = new Set(
+      documents.map((d) => d.previousVersionId).filter(Boolean),
+    );
+    const documentsWithFlag = documents.map((d) => ({
+      ...d,
+      isCurrent: !replaced.has(d.id),
+    }));
+    const currentDocuments = documentsWithFlag.filter((d) => d.isCurrent);
+
+    const activeLeases = leases.filter(
+      (l) => l.status === LeaseStatus.ACTIVE,
+    );
+
+    return {
+      summary: {
+        activeLeases: activeLeases.length,
+        occupiedRooms: new Set(activeLeases.map((l) => l.room.id)).size,
+        pendingRequests: roomRequests.filter(
+          (r) => r.status === RequestStatus.PENDING,
+        ).length,
+        documentsAwaitingReview: currentDocuments.filter(
+          (d) => d.status === DocumentStatus.PENDING,
+        ).length,
+        documentsRejected: currentDocuments.filter(
+          (d) => d.status === DocumentStatus.REJECTED,
+        ).length,
+        pendingPayments,
+        openMaintenance,
+      },
+      leases: leases.map((l) => ({
+        ...l,
+        paidThrough: paidThrough.get(l.id) ?? null,
+      })),
+      roomRequests,
+      documents: documentsWithFlag,
+      payments,
+      paymentTotal,
+      maintenance,
+      maintenanceTotal,
+    };
   }
 
   async findAll(query: ListUsersQueryDto) {

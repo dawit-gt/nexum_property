@@ -5,6 +5,8 @@ import { FloorsService } from './floors.service';
 import { UpdateFloorDto } from './dto/update-floor.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('floors')
 @ApiBearerAuth()
@@ -22,15 +24,19 @@ export class FloorsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Update a floor' })
-  update(@Param('id') id: string, @Body() dto: UpdateFloorDto) {
-    return this.floorsService.update(id, dto);
+  update(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateFloorDto,
+  ) {
+    return this.floorsService.update(id, dto, admin.id);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: '[ADMIN] Deactivate a floor (soft delete)' })
-  remove(@Param('id') id: string) {
-    return this.floorsService.softDelete(id);
+  remove(@CurrentUser() admin: AuthenticatedUser, @Param('id') id: string) {
+    return this.floorsService.softDelete(id, admin.id);
   }
 }

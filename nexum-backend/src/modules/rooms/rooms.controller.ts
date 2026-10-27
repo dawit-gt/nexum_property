@@ -50,8 +50,8 @@ export class RoomsController {
     summary:
       '[ADMIN] Create a room (monthlyRent is computed automatically)',
   })
-  create(@Body() dto: CreateRoomDto) {
-    return this.roomsService.create(dto);
+  create(@CurrentUser() admin: AuthenticatedUser, @Body() dto: CreateRoomDto) {
+    return this.roomsService.create(dto, admin.id);
   }
 
   @Get()
