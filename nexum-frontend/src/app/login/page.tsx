@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AuthShell } from '@/components/layout/auth-shell';
@@ -11,14 +11,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { getApiErrorMessage } from '@/lib/api-client';
+import { nextQuery, safeNextPath } from '@/lib/safe-redirect';
 import {
   loginSchema,
   type LoginFormValues,
 } from '@/lib/validations/auth';
 
-export default function LoginPage() {
+function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
+  // Set when someone was sent here from a page, e.g. a room they wanted to request.
+  const next = safeNextPath(useSearchParams().get('next'));
+
   const [serverError, setServerError] = useState<string | null>(
     null,
   );
@@ -43,7 +47,7 @@ export default function LoginPage() {
       router.push(
         loggedInUser.role === 'ADMIN'
           ? '/admin/dashboard'
-          : '/dashboard',
+          : (next ?? '/dashboard'),
       );
     } catch (err) {
       setServerError(getApiErrorMessage(err));
@@ -53,12 +57,16 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Log in"
-      subtitle="Welcome back to Nexum"
+      subtitle={
+        next?.startsWith('/rooms/')
+          ? 'Sign in to continue with your room request'
+          : 'Welcome back to Nexum'
+      }
       footer={
         <>
           Don&apos;t have an account?{' '}
           <Link
-            href="/register"
+            href={`/register${nextQuery(next)}`}
             className="font-medium text-slate-900 underline"
           >
             Register
@@ -131,5 +139,13 @@ export default function LoginPage() {
         </Button>
       </form>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -124,9 +124,16 @@ export default function RoomDetailPage() {
         ) : null}
 
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          {user?.registrationStatus !== 'APPROVED' ? (
+          {user?.registrationStatus === 'REJECTED' ? (
             <p className="text-sm text-slate-500">
-              Your registration must be approved before you can request a room. Check your dashboard for status.
+              Your registration was not approved, so you can&apos;t request a room yet. Open your Profile to see why
+              and upload corrected documents.
+            </p>
+          ) : user?.registrationStatus !== 'APPROVED' ? (
+            <p className="text-sm text-slate-500">
+              Thanks for your interest in this room! An admin needs to approve your registration before you can send
+              a request. You&apos;ll get a notification as soon as it&apos;s approved, and you can come back to this
+              page to request it.
             </p>
           ) : submitted ? (
             <p className="text-sm text-green-700">

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AuthShell } from '@/components/layout/auth-shell';
@@ -12,11 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { apiPost, getApiErrorMessage } from '@/lib/api-client';
+import { nextQuery, safeNextPath } from '@/lib/safe-redirect';
 import { registerSchema, type RegisterFormValues } from '@/lib/validations/auth';
 
-export default function RegisterPage() {
+function RegisterFlow() {
   const router = useRouter();
   const { user, isLoading, login } = useAuth();
+  // Set when someone was sent here from a page, e.g. a room they wanted to request.
+  const next = safeNextPath(useSearchParams().get('next'));
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -29,8 +32,8 @@ export default function RegisterPage() {
   useEffect(() => {
     if (isLoading || !user) return;
     if (user.role === 'ADMIN') router.replace('/admin/dashboard');
-    else if (user.registrationStatus === 'APPROVED') router.replace('/dashboard');
-  }, [isLoading, user, router]);
+    else if (user.registrationStatus === 'APPROVED') router.replace(next ?? '/dashboard');
+  }, [isLoading, user, router, next]);
 
   const onSubmit = async (values: RegisterFormValues) => {
     setServerError(null);
@@ -53,7 +56,9 @@ export default function RegisterPage() {
     try {
       await login(values.email, values.password);
     } catch {
-      router.push('/login?registered=true');
+      const params = new URLSearchParams({ registered: 'true' });
+      if (next) params.set('next', next);
+      router.push(`/login?${params.toString()}`);
     }
   };
 
@@ -73,7 +78,7 @@ export default function RegisterPage() {
         subtitle={`Almost done, ${user.firstName}. Add your documents so an admin can approve your account`}
         footer={null}
       >
-        <RegistrationDocuments />
+        <RegistrationDocuments nextPath={next} />
       </AuthShell>
     );
   }
@@ -82,11 +87,15 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Next you will upload your documents, then an admin reviews your registration"
+      subtitle={
+        next?.startsWith('/rooms/')
+          ? 'Create an account to request this room. Next you will upload your documents'
+          : 'Next you will upload your documents, then an admin reviews your registration'
+      }
       footer={
         <>
           Already have an account?{' '}
-          <Link href="/login" className="font-medium text-slate-900 underline">
+          <Link href={`/login${nextQuery(next)}`} className="font-medium text-slate-900 underline">
             Log in
           </Link>
         </>
@@ -142,5 +151,13 @@ export default function RegisterPage() {
         </Button>
       </form>
     </AuthShell>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterFlow />
+    </Suspense>
   );
 }

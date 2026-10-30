@@ -36,7 +36,7 @@ interface SlotState {
 
 const EMPTY: SlotState = { file: null, status: 'idle' };
 
-export function RegistrationDocuments() {
+export function RegistrationDocuments({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
 
   const [slots, setSlots] = useState<Record<DocumentType, SlotState>>({
@@ -71,7 +71,8 @@ export function RegistrationDocuments() {
     patch(type, { file, status: 'idle', error: undefined });
   };
 
-  const goToDashboard = () => router.push('/dashboard');
+  // Back to the room the person was looking at, if they came from one.
+  const goToDashboard = () => router.push(nextPath ?? '/dashboard');
 
   const handleUpload = async () => {
     setNotice(null);
@@ -81,7 +82,7 @@ export function RegistrationDocuments() {
 
     if (queue.length === 0) {
       if (alreadyDone) goToDashboard();
-      else setNotice('Choose at least one file, or skip for now.');
+      else setNotice('Choose at at least one file, or skip for now.');
       return;
     }
 
